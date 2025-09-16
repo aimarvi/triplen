@@ -7,6 +7,8 @@ Contact: moonl@pku.edu.cn
 
 This document is currently under development to ensure clarity and ease of understanding. Your feedback is invaluable—please feel free to raise an issue or email me with any suggestions or points needing clarification.
 
+This repo is a fork of the original, located at https://github.com/liyipeng-moon/Triple-N 
+
 ## File Structure
 For each recording session, three file types are provided:
 
@@ -41,27 +43,7 @@ note: `trial_idx` here correspond to all valid trials (i.e. `meta_data.trial_val
 
 ---
 
-### 2. H5 Files
-Better format for faster data access relative to matlab GoodUnitStrc. Fetch with matlab:
-```
-    h5read('xxx', '/field')
-```
-
-**Example Filename**:  
-`ses01_240629_M1_2.h5`
-
-### Contents
-| Field | Format | Description |
-|-------|--------|-------------|
-| `raster_matrix_img` | [unit_num × trial_idx × time_point] | Same as GoodUnitStrc
- |
-| `response_matrix_img` | [unit_num × image_idx × time_point] | Same as GoodUnitStrc |
-
-
-
----
-
-## 3. Processed Files
+## 2. Processed Files
 Contains unit-wise processed information.
 
 **Example Filename**:  
@@ -113,13 +95,3 @@ Contains manually defined Regions of Interest (ROIs) for each session.
 - `AMC`: Anterior medial color area
 
 ---
-
-## Code
-
-### script
-code for analyze and generate figures in the paper
-
-### demo code
-not related to paper, just a going-through demo
- - demo1, generating single unit raster plot for several images
- - demo2, generating populational preference of interested ROI

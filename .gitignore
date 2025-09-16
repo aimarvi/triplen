@@ -1,1 +1,8 @@
+# MacOS specific files
+.DS_Store
+
+# NSD images
 img_pool.mat
+
+# do not save matlab autosave files
+*.asv
