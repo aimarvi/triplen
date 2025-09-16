@@ -3,6 +3,7 @@ clear
 load img_pool.mat
 interesred_ROI = 'MB3';
 manual_data = readtable('exclude_area.xls');
+datadir = '../../datasets/NNN/';
 
 for row_in_table = 1:size(manual_data,1)
     if(~strcmp(manual_data.AREALABEL{row_in_table},interesred_ROI))
@@ -12,8 +13,8 @@ for row_in_table = 1:size(manual_data,1)
     ses_idx = manual_data.SesIdx(row_in_table);
     fprintf('extracting from session %d \n', ses_idx)
 
-    all_procdata = dir(fullfile('Data', sprintf('Processed_ses%d*', ses_idx)));
-    proc_data = load(fullfile('Data', all_procdata.name));
+    all_procdata = dir(fullfile(datadir, sprintf('Processed_ses%d*', ses_idx)));
+    proc_data = load(fullfile(datadir, all_procdata.name));
 
     % y location limit for spike position
     y1_here = manual_data.y1(row_in_table);
@@ -24,7 +25,7 @@ for row_in_table = 1:size(manual_data,1)
 
     
     rsp_mtx = proc_data.response_best(good_unit_idx,1:1000);
-    rsp_mtx = zscore(rsp_mtx, 0, 2); % normalize for each unit, someone would prefer skip this
+    % rsp_mtx = zscore(rsp_mtx, 0, 2); % normalize for each unit, someone would prefer skip this
 
     figure;set(gcf,'Position',[5 500 2000 350])
     subplot(2,10,1); hold on
@@ -61,7 +62,7 @@ for row_in_table = 1:size(manual_data,1)
     xlabel('Img, sorted by population mean')
     ylabel('Unit')
 
-    saveas(gcf,sprintf('demo2_%d.png',ses_idx))
+    % saveas(gcf,sprintf('demo2_%d.png',ses_idx))
 end
 
 %%
