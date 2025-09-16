@@ -4,7 +4,7 @@ clear
 datadir = '../../datasets/NNN/';
 all_goodunit = dir([datadir filesep 'GoodUnit_*']);
 all_procdata = dir([datadir filesep 'Processed_ses*']);
-interesred_ses = 46;
+interesred_ses = 1;
 load(fullfile(datadir,all_goodunit(interesred_ses).name));
 load(fullfile(datadir,all_procdata(interesred_ses).name));
 img_idx = meta_data.trial_valid_idx(meta_data.trial_valid_idx~=0); % extract valid trial for this session
