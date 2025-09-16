@@ -1,10 +1,12 @@
 %% This demo code read one session data from session 46
 clear
-all_goodunit = dir('Data\GoodUnit_*');
-all_procdata = dir('Data\Processed_ses*');
+% new data directory for @aim
+datadir = '../../datasets/NNN/';
+all_goodunit = dir([datadir filesep 'GoodUnit_*']);
+all_procdata = dir([datadir filesep 'Processed_ses*']);
 interesred_ses = 46;
-load(fullfile('Data',all_goodunit(interesred_ses).name));
-load(fullfile('Data',all_procdata(interesred_ses).name));
+load(fullfile(datadir,all_goodunit(interesred_ses).name));
+load(fullfile(datadir,all_procdata(interesred_ses).name));
 img_idx = meta_data.trial_valid_idx(meta_data.trial_valid_idx~=0); % extract valid trial for this session
 psth_t = global_params.PsthRange;
 load img_pool.mat
@@ -78,5 +80,5 @@ for example_unit_idx = 1:5
     xlim([-30,350])
     title(sprintf('Unit %d, dprime=%.01f',example_unit_idx,B_SI(neuron_idx)))
 
-    saveas(gcf,sprintf('demo1_unit%d.png',neuron_idx))
+    % saveas(gcf,sprintf('demo1_unit%d.png',neuron_idx))
 end
