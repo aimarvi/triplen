@@ -1,6 +1,6 @@
 clear
 % new data directory for @aim
-datadir = '../../datasets/NNN/';
+datadir = '../datasets/NNN/';
 
 %% load in electrode data + metadata for a single sessions
 % file names
@@ -35,6 +35,3 @@ t = 1:nTime;                     % or your real time vector
 figure; plot(t(col), row, '.', 'MarkerSize', 2);
 set(gca, 'YDir','reverse');      % trial 1 at top
 xlabel('Time (bins)'); ylabel('Trial'); title('Spike raster (dots)');
-
-
-
