@@ -18,5 +18,5 @@ with h5py.File(os.path.join(datadir, fnames[session_num]), 'r') as f:
 
     raster_stacked = np.stack(raster_npy)
 
-# shape is (376, 450, 5720) --> (units, time point, images?)
+# shape is (376, 450, 5720) --> (units, time point, trial)
 print(raster_stacked.shape)
