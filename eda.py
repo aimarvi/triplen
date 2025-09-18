@@ -8,10 +8,15 @@ fnames = [f for f in os.listdir(datadir) if re.match(r'^GoodUnit.*\.mat$', f)]
 
 session_num = 1
 
-f = h5py.File(os.path.join(datadir, fnames[session_num]), 'r')
-print(f['GoodUnitStrc'].keys())
-f2 = f.get('GoodUnitStrc/Raster')
+with h5py.File(os.path.join(datadir, fnames[session_num]), 'r') as f:
+    # Choose your path as appropriate
+    raster = f['GoodUnitStrc/Raster']
+    
+    # Dereference all cell elements into a list of np arrays
+    raster_npy = [f[raster[i,0]][()] for i in range(raster.shape[0])]
+    # Note: use raster[i] instead of raster[i, 0] if it's 1D
 
-# the shape is correct but it is an h5py dataset (full of obj references??)
-# how do i turn it into an numpy array?
-print(f2.shape) 
+    raster_stacked = np.stack(raster_npy)
+
+# shape is (376, 450, 5720) --> (units, time point, images?)
+print(raster_stacked.shape)
