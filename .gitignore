@@ -4,5 +4,6 @@
 # NSD images
 img_pool.mat
 
-# do not save matlab autosave files
+# ignore autosave files
+.ipynb_checkpoints/
 *.asv

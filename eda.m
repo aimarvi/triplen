@@ -11,9 +11,15 @@ all_procdata = dir([datadir filesep 'Processed_ses*']);
 session_num = 1;
 
 % actually load in the single-session data
-load(fullfile(datadir,all_goodunit(session_num).name));
-load(fullfile(datadir,all_procdata(session_num).name));
+% load(fullfile(datadir,all_goodunit(session_num).name));
+% load(fullfile(datadir,all_procdata(session_num).name));
 
+% manually load in fname to match the python version
+load(fullfile(datadir,'GoodUnit_240927_ZhuangZhuang_NSD1000_LOC_g2.mat'));
+load(fullfile(datadir,'Processed_ses32_240927_M3_2.mat'));
+
+
+%% some stats about this session
 fprintf('total number of sites for session %d: %d\n', session_num, UnitNum);
 fprintf('\t%d single units\n', sum(UnitType==1));
 fprintf('\t%d MUAs\n', sum(UnitType==2));
