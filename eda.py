@@ -2,21 +2,20 @@ import os
 import re
 import h5py
 import numpy as np
+import scipy.io
+
+import utils
 
 datadir = '../datasets/NNN/'
-fnames = [f for f in os.listdir(datadir) if re.match(r'^GoodUnit.*\.mat$', f)]
+fnames = utils.fnames(datadir)
 
-session_num = 1
-
-with h5py.File(os.path.join(datadir, fnames[session_num]), 'r') as f:
-    # Choose your path as appropriate
-    raster = f['GoodUnitStrc/Raster']
+for pair in fnames:
+    gus_fname = os.path.join(datadir, pair[0])
+    proc_fname = os.path.join(datadir, pair[1])
     
-    # Dereference all cell elements into a list of np arrays
-    raster_npy = [f[raster[i,0]][()] for i in range(raster.shape[0])]
-    # Note: use raster[i] instead of raster[i, 0] if it's 1D
-
-    raster_stacked = np.stack(raster_npy)
-
-# shape is (376, 450, 5720) --> (units, time point, trial)
-print(raster_stacked.shape)
+    gus_data = utils.load_mat(gus_fname)
+    proc_data = scipy.io.loadmat(proc_fname)
+    
+    print(proc_data.keys())
+    print(gus_data.keys())
+    break
