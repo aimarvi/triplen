@@ -1,5 +1,8 @@
 import re
 import os
+import h5py
+import numpy as np
+
 
 def fnames(datadir='/Users/aim/Desktop/HVRD/workspace/dynamics/datasets/NNN/'):
     gus_fnames = [f for f in os.listdir(datadir) if re.match(r'^GoodUnit.*\.mat$', f)]
@@ -39,3 +42,72 @@ def fnames(datadir='/Users/aim/Desktop/HVRD/workspace/dynamics/datasets/NNN/'):
     )
 
     return paired_files
+
+def mat_struct_to_dict(f, obj, verbose=False):
+    """
+    Recursively convert HDF5 Matlab structure/group or dataset to nested dicts and numpy arrays.
+    Automatically dereferences cell arrays and groups.
+    """
+    result = {}
+    for key in obj.keys():
+        item = obj[key]
+        # If subgroup, recurse
+        if isinstance(item, h5py.Group):
+            result[key] = mat_struct_to_dict(f, item)
+        # If dataset, check if cell array (object refs) or regular array
+        elif isinstance(item, h5py.Dataset):
+            # Cell arrays: h5py Datasets where dtype == object or ref
+            if item.dtype == 'O' or h5py.check_dtype(ref=item.dtype) is not None:
+                cell_data = []
+                item = np.squeeze(item)  # optional; you can keep this or not
+                for idx in np.ndindex(item.shape):
+                    ref = item[idx]
+                    if isinstance(ref, (np.ndarray,)):
+                        ref = ref.item()
+                    if isinstance(f[ref], h5py.Group):
+                        arr = mat_struct_to_dict(f, f[ref])
+                    else:
+                        arr = f[ref][()]
+                    cell_data.append(arr)
+                try:
+                    cell_data = np.array(cell_data, dtype=object).reshape(item.shape)
+                except Exception as e:
+                    if verbose:
+                        print(f'{key} data is ragged or shape is weird: {e}. Returning as a list of arrays.')
+                result[key] = cell_data
+            else:
+                # Standard numeric array (possibly needs squeezing)
+                result[key] = item[()]
+    return result
+
+def load_mat(filename, verbose=False):
+    """
+    Load a Matlab -v7.3 (HDF5-format) .mat file, dereference cell arrays, and
+    return a dict of numpy arrays and nested dicts (for group/structs).
+    """
+    with h5py.File(filename, 'r') as f:
+        data = {}
+        for key in f.keys():
+            obj = f[key]
+            if key.startswith('#'):
+                continue
+            if isinstance(obj, h5py.Group):
+                data[key] = mat_struct_to_dict(f, obj, verbose)
+            elif isinstance(obj, h5py.Dataset):
+                # Top-level cell array or dataset
+                if obj.dtype == 'O' or h5py.check_dtype(ref=obj.dtype) is not None:
+                    cell_data = []
+                    indices = np.ndindex(obj.shape)
+                    for idx in indices:
+                        ref = obj[idx]
+                        if isinstance(ref, (np.ndarray,)):
+                            ref = ref.item()
+                        arr = f[ref][()]
+                        cell_data.append(arr)
+                    cell_data = np.array(cell_data, dtype=object).reshape(obj.shape)
+                    data[key] = cell_data
+                else:
+                    data[key] = obj[()]
+        if verbose:
+            print(f'successfully loaded data with keys {data.keys()}')
+        return data
