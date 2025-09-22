@@ -53,6 +53,7 @@ for i, pair in tqdm(enumerate(fnames)):
     except Exception as e:
         print(f"Error processing {proc_fname or gus_fname}: {e}")
         continue
+    break
 
 print(f"successfully loaded all units\ntotal units: {total_units}")
 df.to_pickle('../datasets/NNN/all_unit_data.pkl')
