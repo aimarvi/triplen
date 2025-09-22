@@ -9,6 +9,9 @@ This document is currently under development to ensure clarity and ease of under
 
 This repo is a fork of the original, located at https://github.com/liyipeng-moon/Triple-N 
 
+## Notes
+ - The file 'Processed_ses29_240920_M3_3.mat' has inconsistent unit numbers
+
 ## File Structure
 For each recording session, three file types are provided:
 
