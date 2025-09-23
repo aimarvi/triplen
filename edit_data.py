@@ -7,13 +7,13 @@ import scipy.io
 
 import utils as utils
 
-df = pd.read_pickle('../datasets/NNN/all_unit_data')
+df = pd.read_pickle('../datasets/NNN/all_unit_data.pkl')
 
 datadir = '../datasets/NNN/'
 fnames = utils.fnames(datadir)
 
 # add the column name for data you want to add
-new_col = ['...'] 
+new_col = ['img_raster'] 
 cols = ['session', 'monkey'] + new_col
 new_df = pd.DataFrame(columns=cols)
 
@@ -30,20 +30,28 @@ for i, pair in tqdm(enumerate(fnames)):
         continue
     try:
         proc_data = scipy.io.loadmat(proc_fname)
+        gus_data = utils.load_mat(gus_fname)
         
         session_num = int(m.group(1))
         monkey = int(m.group(3))
         unit_types = proc_data['UnitType'][0]
         num_units = len(proc_data['UnitType'][0])
-
+        
         # data to add goes here:
-        new_dat = proc_data['snrmax'].T.squeeze(); assert new_dat.shape[0] == num_units
+        raster = gus_data['GoodUnitStrc']['Raster']; assert len(raster) == num_units
+        trial_idx = gus_data['meta_data']['trial_valid_idx'].squeeze()
+        trial_idx = trial_idx[trial_idx!=0]
         
         for unit_idx in range(num_units):
-            df.loc[len(df)] = {
+            unit_raster = raster[unit_idx]; assert(unit_raster.shape[0] == 450)# (time_points, 7434)                               
+            df_raster = pd.DataFrame(unit_raster.T)  # shape: (trials, timebins)
+            df_raster['img'] = trial_idx
+            img_avg = df_raster.groupby('img').mean().T.reindex(range(1,1073), axis=1).values  # (450, 1072)
+                                            
+            new_df.loc[len(new_df)] = {
                 'session': session_num,
                 'monkey': monkey,
-                new_col: snr_max[unit_idx]
+                new_col[0]: img_avg
             }
         total_units += num_units
 
@@ -54,5 +62,6 @@ for i, pair in tqdm(enumerate(fnames)):
         print(f"Error processing {proc_fname or gus_fname}: {e}")
         continue
 
-df[new_col] = new_df[new_col]
-# df.to_pickle('../datasets/NNN/all_unit_data.pkl')
+df[new_col[0]] = new_df[new_col[0]]
+df.to_pickle('../datasets/NNN/all_raster_data.pkl')
+df
