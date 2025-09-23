@@ -8,6 +8,7 @@ Ref: https://www.biorxiv.org/content/10.1101/2025.05.06.652408v1
 
 ## Notes to myself
  - The file 'Processed_ses29_240920_M3_3.mat' has inconsistent unit numbers
+ - Sessions 58,59 do not have raster-level data
 
 ## File Structure
 For each recording session, three file types are provided:
