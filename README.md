@@ -1,15 +1,12 @@
-# Triple-N Dataset Documentation
+# Triple-N Dataset (@aim)
 
 Non-human Primate Neural Responses to Natural Scenes
 
 Ref: https://www.biorxiv.org/content/10.1101/2025.05.06.652408v1
-Contact: moonl@pku.edu.cn
 
-This document is currently under development to ensure clarity and ease of understanding. Your feedback is invaluable—please feel free to raise an issue or email me with any suggestions or points needing clarification.
+@aim: this repo is a fork of the original, located at https://github.com/liyipeng-moon/Triple-N 
 
-This repo is a fork of the original, located at https://github.com/liyipeng-moon/Triple-N 
-
-## Notes
+## Notes to myself
  - The file 'Processed_ses29_240920_M3_3.mat' has inconsistent unit numbers
 
 ## File Structure
@@ -17,7 +14,7 @@ For each recording session, three file types are provided:
 
 ---
 
-### 1. GoodUnit Files
+## 1. GoodUnit Files
 Contains processed spike information and some meta-data.
 
 **Example Filename**:  
