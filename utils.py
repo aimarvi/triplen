@@ -111,3 +111,46 @@ def load_mat(filename, verbose=False):
         if verbose:
             print(f'successfully loaded data with keys {data.keys()}')
         return data
+    
+def compute_noise_ceiling(data_in):
+    """
+    Compute the noise ceiling signal-to-noise ratio (SNR) and percentage noise ceiling for each unit.
+    
+    Parameters:
+    ----------
+    data_in : np.ndarray
+        A 3D array of shape (units/voxels, conditions, trials), representing the data for which to compute 
+        the noise ceiling. Each unit requires more than 1 trial for each condition.
+
+    Returns:
+    -------
+    noiseceiling : np.ndarray
+        The noise ceiling for each unit, expressed as a percentage.
+    ncsnr : np.ndarray
+        The noise ceiling signal-to-noise ratio (SNR) for each unit.
+    signalvar : np.ndarray
+        The signal variance for each unit.
+    noisevar : np.ndarray
+        The noise variance for each unit.
+    """
+    # noisevar: mean variance across trials for each unit
+    noisevar = np.mean(np.std(data_in, axis=2, ddof=1) ** 2, axis=1)
+
+    # datavar: variance of the trial means across conditions for each unit
+    datavar = np.std(np.mean(data_in, axis=2), axis=1, ddof=1) ** 2
+
+    # signalvar: signal variance, obtained by subtracting noise variance from data variance
+    signalvar = np.maximum(datavar - noisevar / data_in.shape[2], 0)  # Ensure non-negative variance
+
+    # ncsnr: signal-to-noise ratio (SNR) for each unit
+    ncsnr = np.sqrt(signalvar) / np.sqrt(noisevar)
+
+    # noiseceiling: percentage noise ceiling based on SNR
+    noiseceiling = 100 * (ncsnr ** 2 / (ncsnr ** 2 + 1 / data_in.shape[2]))
+
+    return noiseceiling, ncsnr, signalvar, noisevar
+
+
+
+
+
