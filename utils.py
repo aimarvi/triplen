@@ -134,10 +134,10 @@ def compute_noise_ceiling(data_in):
         The noise variance for each unit.
     """
     # noisevar: mean variance across trials for each unit
-    noisevar = np.mean(np.std(data_in, axis=2, ddof=1) ** 2, axis=1)
+    noisevar = np.nanmean(np.std(data_in, axis=2, ddof=1) ** 2, axis=1)
 
     # datavar: variance of the trial means across conditions for each unit
-    datavar = np.std(np.mean(data_in, axis=2), axis=1, ddof=1) ** 2
+    datavar = np.nanstd(np.nanmean(data_in, axis=2), axis=1, ddof=1) ** 2
 
     # signalvar: signal variance, obtained by subtracting noise variance from data variance
     signalvar = np.maximum(datavar - noisevar / data_in.shape[2], 0)  # Ensure non-negative variance
