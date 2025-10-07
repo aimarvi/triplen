@@ -150,7 +150,44 @@ def compute_noise_ceiling(data_in):
 
     return noiseceiling, ncsnr, signalvar, noisevar
 
+def derag_fr(data_in, period='early'):
+    """
+    Return the per-trial firing rate data for all units in a specific time period
+    
+    Arguments:
+    ---------
+    data_in : pd.DataFrame
+    period : str 
+        'pre' --> -25 to 30 ms
+        'early' --> 50 to 120 ms
+        'late' --> 120 to 240 ms
+                
+    Returns:
+    --------
+    stacked : np.ndarray (num_units, images, trials)
+        nan padded
+    """
+    # the array is still ragged
+    in_period = list(data_in[period])
+    num_units = len(in_period)
+    num_images = len(in_period[0])
 
+    # maximum number of reps for a single image
+    max_reps = max(
+        len(arr) if hasattr(arr, "__len__") else 0
+        for unit in in_period
+        for arr in unit)
 
-
+    # pad with nan
+    stacked = np.full((num_units, num_images, max_reps), np.nan, dtype=float)
+    for unit_i, unit in enumerate(in_period):
+        for img in range(num_images):
+            arr = np.array(unit[img])
+            reps_here = len(arr)
+            if reps_here > 0:
+                stacked[unit_i, img, :reps_here] = arr
+                
+    return stacked
+    
+    
 
