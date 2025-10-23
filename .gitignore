@@ -1,8 +1,9 @@
 # MacOS specific files
 .DS_Store
 
-# NSD images
-img_pool.mat
+# large-ish data files
+img_pool.mat 
+k_labels.pkl
 
 # ignore autosave files
 .ipynb_checkpoints/

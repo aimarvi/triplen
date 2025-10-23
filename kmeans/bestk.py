@@ -1,14 +1,13 @@
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.stats import zscore
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from tqdm import tqdm
 
-from .. import utils
-
-print('success')
-quit()
+from triplen import utils
 
 # =========================
 # CONFIG
@@ -16,14 +15,13 @@ quit()
 ONSET_MS = 0          # stimulus onset (ms)
 WINDOW_MS = 350        # analyze 0-300 ms post onset
 BIN_MS = 1             # temporal bin size (ms). If not 1, change indices below
-K_RANGE = range(2, 11) # candidates for number of clusters
+K_RANGE = range(2, 20) # candidates for number of clusters
 RANDOM_STATE = 0
 N_INIT = "auto"        # or an int (e.g., 20) if on older sklearn
 
+# =================================== # LOAD IN DATA 
 # ===================================
-# LOAD IN DATA 
-# ===================================
-dat = pd.read_pickle('../../datasets/NNN/unit_data_full.pkl')
+dat = pd.read_pickle('./datasets/NNN/unit_data_full.pkl')
 # start and end times calculated from CONFIG
 start = int(ONSET_MS / BIN_MS)
 end   = start + int(WINDOW_MS / BIN_MS)
@@ -49,7 +47,7 @@ X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
 # =========================
 # INERTIA/SILHOUETTE: choose K
 # =========================
-sil_scores = []
+sil_scores = {}
 labels_by_k = {}
 inertias = {}
 for k in tqdm(K_RANGE):
@@ -62,7 +60,7 @@ for k in tqdm(K_RANGE):
     # alternatively, use silhouette
     # requires >1 cluster and less than n_samples
     sil = silhouette_score(X, lab)
-    sil_scores.append((k, sil))
+    sil_scores[k] = sil
 
 ################### by INERTIA ###################
 df = pd.DataFrame({
@@ -76,13 +74,19 @@ plt.show()
 
 ############### by SILHOUETTE score ########################
 # Pick best K
-best_k, best_sil = max(sil_scores, key=lambda t: t[1])
+best_k = max(sil_scores, key=sil_scores.get)
 print("Silhouette scores:")
-for k, s in sil_scores:
+for k, s in sil_scores.items():
     print(f"  k={k}: silhouette={s:.4f}")
-print(f"=> Selected k={best_k} (silhouette={best_sil:.4f})")
+print(f"=> Selected k={best_k} (silhouette={sil_scores[best_k]:.4f})")
 
-# Attach labels back to the original `dat`
-dat['cluster'] = np.nan
-labels = labels_by_k[best_k]
-dat.loc[valid_idx, 'cluster'] = labels
+# # Attach labels back to the original `dat`
+# dat['cluster'] = np.nan
+# labels = labels_by_k[best_k]
+# dat.loc[valid_idx, 'cluster'] = labels
+
+df['silhouette'] = sil_scores.values()
+df['labels'] = labels_by_k.values()
+df.to_pickle('/Users/aim/Desktop/HVRD/workspace/dynamics/triplen/k_labels.pkl')
+print(df)
+# print(labels_by_k)
