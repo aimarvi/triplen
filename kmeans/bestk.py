@@ -66,7 +66,6 @@ df = pd.DataFrame({
     "k": list(inertias.keys()),
     "inertia": list(inertias.values())
 })
-
 # seaborn lineplot
 plt.figure(figsize=(7, 4))
 sns.lineplot(data=df, x="k", y="inertia", marker="o", linewidth=2.5)
@@ -75,8 +74,6 @@ plt.show()
 ############### by SILHOUETTE score ########################
 # Pick best K
 best_k, best_sil = max(sil_scores, key=lambda t: t[1])
-labels = labels_by_k[best_k]
-
 print("Silhouette scores:")
 for k, s in sil_scores:
     print(f"  k={k}: silhouette={s:.4f}")
@@ -84,4 +81,5 @@ print(f"=> Selected k={best_k} (silhouette={best_sil:.4f})")
 
 # Attach labels back to the original `dat`
 dat['cluster'] = np.nan
+labels = labels_by_k[best_k]
 dat.loc[valid_idx, 'cluster'] = labels
