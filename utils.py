@@ -189,5 +189,25 @@ def derag_fr(data_in, period='early'):
                 
     return stacked
     
-    
-
+def get_unit_timecourse(row, start=None, end=None):
+    """
+    Return the unit's avg PSTH within the analysis window.
+    If avg_psth is missing, derive it by averaging img_psth across images.
+    Ensures shape (T,) where T=end-start.
+    """
+    avg = row['avg_psth']
+    if avg is None or (isinstance(avg, float) and np.isnan(avg)):
+        A = np.asarray(row['img_psth'])  # (time, images)
+        if A.ndim != 2:
+            raise ValueError("img_psth must be 2D (time x images)")
+        avg = A.mean(axis=1)
+    avg = np.asarray(avg)
+    if avg.ndim != 1:
+        raise ValueError("avg_psth must be 1D (time,)")
+    # take all values if start/end is not specified
+    if start is None:
+        start = 0
+        end = len(avg)
+    if len(avg) < end:
+        raise ValueError(f"avg_psth length {len(avg)} < required end index {end}")
+    return avg[start:end]  # (T,)
