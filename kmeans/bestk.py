@@ -5,7 +5,10 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from tqdm import tqdm
 
-import utils
+from .. import utils
+
+print('success')
+quit()
 
 # =========================
 # CONFIG
