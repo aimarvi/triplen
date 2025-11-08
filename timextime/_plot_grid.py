@@ -5,7 +5,9 @@ from PIL import Image, ImageDraw, ImageFont
 import imageio.v2 as iio
 
 '''
-
+same as _plot.py, but computes multiple ROIs and plots them all together (TOP & SHUFF)
+also forgot to mention in other script:
+    --> data is filtered for p_val <0.05
 '''
 
 def rdm_sequence(dat, ROI, mode='top', step=10, k_max=200, metric='correlation',
