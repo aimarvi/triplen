@@ -42,6 +42,34 @@ def rdm_sequence(dat, ROI, mode='top', step=10, k_max=200, metric='correlation',
         rdms.append(R)
     return sizes, rdms
 
+def rdv_redo(dat, ROI, mode='top', step=5, k_max=200, metric='correlation',
+                 onset=50, resp=(50,220), base=(-50,0), random_state=0):
+    rng = np.random.default_rng(random_state)
+    ONSET = onset
+    RESP = slice(ONSET + resp[0], ONSET + resp[1])
+    BASE = slice(ONSET + base[0], ONSET + base[1])
+
+    sig = dat[dat['p_value'] < 0.05]
+    df = sig[sig['roi'] == ROI]
+    if len(df) == 0:
+        raise ValueError(f"No data for ROI {ROI}")
+    X = np.stack(df['img_psth'].to_numpy())          # (units, time, images)
+
+    scores = np.nanmean(X[:, RESP, :], axis=(0,1)) - np.nanmean(X[:, BASE, :], axis=(0,1))
+    order = np.argsort(scores)[::-1] if mode == 'top' else rng.permutation(scores.size)
+
+    # choose the image-set bins to calculate RDMs
+    # sizes = [k for k in range(step, min(k_max, X.shape[2]) + 1, step)]
+    sizes = [k for k in range(1, 2*step)] + [k for k in range(2*step, min(k_max, X.shape[2])+1, step)]
+    rdvs = []
+    for k in tqdm(sizes):
+        idx = order[:k]
+        Ximg = X[:, :, idx] # (units, time, images)
+        Xrdv = np.array([pdist(Ximg[:, t, :].T, metric='correlation') for t in range(Ximg.shape[1])])
+        R = squareform(pdist(Xrdv, metric=metric))   # (time, time)
+        rdvs.append(R)
+    return sizes, rdvs
+
 def rdm_to_image(R, vmin, vmax, dpi=120, cmap='magma'):
     fig, ax = plt.subplots(figsize=(3,3), dpi=dpi)
     sns.heatmap(R, ax=ax, cmap=sns.color_palette(cmap, as_cmap=True),
@@ -58,9 +86,13 @@ def build_grid_gif(dat, ROI_LIST, step=10, k_max=200, metric='correlation',
     # compute sequences for all ROIs (top & shuffle)
     seqs_top, seqs_shuf = {}, {}
     for roi in tqdm(ROI_LIST):
-        sizes, rdms_top = rdm_sequence(dat, roi, mode='top', step=step, k_max=k_max,
+        # sizes, rdms_top = rdm_sequence(dat, roi, mode='top', step=step, k_max=k_max,
+        #                                metric=metric, random_state=random_state)
+        # _,     rdms_shf = rdm_sequence(dat, roi, mode='shuffle', step=step, k_max=k_max,
+        #                                metric=metric, random_state=random_state)
+        sizes, rdms_top = rdv_redo(dat, roi, mode='top', step=step, k_max=k_max,
                                        metric=metric, random_state=random_state)
-        _,     rdms_shf = rdm_sequence(dat, roi, mode='shuffle', step=step, k_max=k_max,
+        _,     rdms_shf = rdv_redo(dat, roi, mode='shuffle', step=step, k_max=k_max,
                                        metric=metric, random_state=random_state)
         seqs_top[roi], seqs_shuf[roi] = rdms_top, rdms_shf
 
@@ -101,16 +133,15 @@ def build_grid_gif(dat, ROI_LIST, step=10, k_max=200, metric='correlation',
     return out_path
 
 # ============ USAGE ================
-DATA_DIR = '../../datasets/NNN/face_roi_data.pkl'
+DATA_DIR = '../../datasets/NNN/body_roi_data.pkl'
 dat = pd.read_pickle(DATA_DIR)
-ROI_LIST = ['MF1_8_F']
-# ROI_LIST = ['AO5_25_O',
-#  'Unknown_6_O',
-#  'PITP4_10_O',
-#  'Unknown_4_O',
-#  'MO1s1_4_O',]
+# ROI_LIST = ['Unknown_19_F', 'MF1_9_F', 'MF1_8_F', 'AF3_18_F', 'MF1_7_F', 'Unknown_5_F', 'AMC3_28_F']
+# ROI_LIST = ['Unknown_19_F']
+# ROI_LIST = ['AO5_25_O', 'Unknown_6_O', 'PITP4_10_O', 'Unknown_4_O', 'MO1s1_4_O',]
+ROI_LIST = ['AB3_18_B', 'MB3_12_B', 'AB3_12_B', 'AB3_17_B']
 
-label = 'test4'
-SAVE_PATH = f'/Users/aim/Desktop/HVRD/workspace/dynamics/gifs/{label}_ramp.gif'
-out = build_grid_gif(dat, ROI_LIST, step=20, k_max=750, metric='correlation', out_path=SAVE_PATH)
+
+label = 'body'
+SAVE_PATH = f'/Users/aim/Desktop/HVRD/workspace/dynamics/gifs/{label}_ramp_redo.gif'
+out = build_grid_gif(dat, ROI_LIST, step=1, k_max=100, metric='correlation', out_path=SAVE_PATH)
 print("Saved:", out)
