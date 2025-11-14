@@ -59,8 +59,8 @@ def rdv_redo(dat, ROI, mode='top', step=5, k_max=200, metric='correlation',
     order = np.argsort(scores)[::-1] if mode == 'top' else rng.permutation(scores.size)
 
     # choose the image-set bins to calculate RDMs
-    # sizes = [k for k in range(step, min(k_max, X.shape[2]) + 1, step)]
-    sizes = [k for k in range(1, 2*step)] + [k for k in range(2*step, min(k_max, X.shape[2])+1, step)]
+    sizes = [k for k in range(step+10, min(k_max, X.shape[2]) + 1, step)]
+    # sizes = [k for k in range(1, 2*step)] + [k for k in range(2*step, min(k_max, X.shape[2])+1, step)]
     rdvs = []
     for k in tqdm(sizes):
         idx = order[:k]
@@ -133,15 +133,15 @@ def build_grid_gif(dat, ROI_LIST, step=10, k_max=200, metric='correlation',
     return out_path
 
 # ============ USAGE ================
-DATA_DIR = '../../datasets/NNN/body_roi_data.pkl'
+DATA_DIR = '../../datasets/NNN/face_roi_data.pkl'
 dat = pd.read_pickle(DATA_DIR)
 # ROI_LIST = ['Unknown_19_F', 'MF1_9_F', 'MF1_8_F', 'AF3_18_F', 'MF1_7_F', 'Unknown_5_F', 'AMC3_28_F']
-# ROI_LIST = ['Unknown_19_F']
+ROI_LIST = ['Unknown_19_F', 'MF1_7_F', 'MF1_8_F', 'MF1_9_F']
 # ROI_LIST = ['AO5_25_O', 'Unknown_6_O', 'PITP4_10_O', 'Unknown_4_O', 'MO1s1_4_O',]
-ROI_LIST = ['AB3_18_B', 'MB3_12_B', 'AB3_12_B', 'AB3_17_B']
+# ROI_LIST = ['AB3_18_B', 'MB3_12_B', 'AB3_12_B', 'AB3_17_B']
 
 
-label = 'body'
+label = 'pair_skip'
 SAVE_PATH = f'/Users/aim/Desktop/HVRD/workspace/dynamics/gifs/{label}_ramp_redo.gif'
-out = build_grid_gif(dat, ROI_LIST, step=1, k_max=100, metric='correlation', out_path=SAVE_PATH)
+out = build_grid_gif(dat, ROI_LIST, step=1, k_max=200, metric='correlation', out_path=SAVE_PATH)
 print("Saved:", out)
