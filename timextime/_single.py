@@ -18,6 +18,6 @@ dat = pd.read_pickle(DATA_DIR)
 ROI_LIST = ['Unknown_19_F', 'MF1_7_F', 'MF1_8_F', 'MF1_9_F']
 
 for roi in ROI_LIST:
-    SAVE_PATH = f'/Users/aim/Desktop/HVRD/workspace/dynamics/gifs/{roi}_spearman.gif'
+    SAVE_PATH = f'/Users/aim/Desktop/HVRD/workspace/dynamics/gifs/{roi}_pearson.gif'
     out = build_grid_gif(dat, [roi], step=1, k_max=200, metric='correlation', out_path=SAVE_PATH)
     print('Saved:', roi)

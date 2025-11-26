@@ -9,6 +9,9 @@ from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 import imageio.v2 as iio
 
+import matplotlib as mpl
+from PIL import Image, ImageDraw, ImageFont
+
 '''
 same as _plot.py, but computes multiple ROIs and plots them all together (TOP & SHUFF)
 also forgot to mention in other script:
@@ -81,6 +84,29 @@ def rdm_to_image(R, vmin, vmax, dpi=120, cmap='magma'):
     plt.close(fig)
     return Image.fromarray(img)
 
+def make_colorbar_image(vmin, vmax, cmap='magma', height=400, dpi=120):
+    fig, ax = plt.subplots(figsize=(0.4, 3), dpi=dpi)
+    norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+    cb = mpl.colorbar.ColorbarBase(ax, cmap=plt.get_cmap(cmap),
+                                   norm=norm, orientation='vertical')
+
+    # ---- add tick labels --------------------
+    ticks = np.linspace(vmin, vmax, 5)  # 5 ticks
+    cb.set_ticks(ticks)
+    cb.set_ticklabels([f"{t:.2f}" for t in ticks])
+    ax.tick_params(labelsize=6)
+    # -----------------------------------------
+
+    fig.tight_layout()
+    fig.canvas.draw()
+    img = np.asarray(fig.canvas.buffer_rgba())
+    plt.close(fig)
+    cb_img = Image.fromarray(img)
+    # resize to match grid height
+    if cb_img.height != height:
+        cb_img = cb_img.resize((cb_img.width, height), Image.BILINEAR)
+    return cb_img
+
 def build_grid_gif(dat, ROI_LIST, step=10, k_max=200, metric='correlation',
                    out_path='rdm_grid.gif', random_state=0):
     # compute sequences for all ROIs (top & shuffle)
@@ -102,6 +128,13 @@ def build_grid_gif(dat, ROI_LIST, step=10, k_max=200, metric='correlation',
 
     T = len(next(iter(seqs_top.values())))  # number of frames (same step schedule)
     frames = []
+
+    # compute one colorbar image with the same vmin/vmax & cmap
+    # height ≈ 2*H + extra text margin; we'll adjust after first grid
+    first_top  = rdm_to_image(next(iter(seqs_top.values()))[0], vmin, vmax)
+    H = first_top.size[1]
+    cb_img = make_colorbar_image(vmin, vmax, cmap='magma', height=2*H+40)
+
     for t in range(T):
         top_tiles  = [rdm_to_image(seqs_top[roi][t],  vmin, vmax)  for roi in ROI_LIST]
         shuf_tiles = [rdm_to_image(seqs_shuf[roi][t], vmin, vmax)  for roi in ROI_LIST]
@@ -120,13 +153,22 @@ def build_grid_gif(dat, ROI_LIST, step=10, k_max=200, metric='correlation',
         # ROI names
         for j, roi in enumerate(ROI_LIST):
             xmid = j*W + W//2
-            draw.text((xmid, 10), roi, fill="black", anchor='mt', font_size=18)
+            draw.text((xmid, 10), f'{roi} | min: {vmin}, max: {vmax:0.3f}', fill="black", anchor='mt', font_size=18)
     
         # image IDs (the subset size used)
         used_k = sizes[t]
         draw.text((grid.width//2, 2*H+30),
                   f"Images used: top {used_k}",  anchor='mb', fill="black", font_size=18)
+
+        # now create final canvas with space for the shared colorbar
+        cb_w, cb_h = cb_img.size
+        canvas = Image.new('RGB', (grid.width + cb_w + 20, grid.height), color=(255,255,255))
+        canvas.paste(grid, (0, 0))
+        # center colorbar vertically on the right
+        y0 = (canvas.height - cb_h) // 2
+        canvas.paste(cb_img, (grid.width + 10, y0))
     
+        # frames.append(canvas)
         frames.append(grid)
 
     iio.mimsave(out_path, frames, duration=2, loop=0)
