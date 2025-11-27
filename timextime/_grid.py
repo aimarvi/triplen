@@ -4,6 +4,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import pdist, squareform
+from scipy.stats import rankdata
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
@@ -41,7 +42,7 @@ def rdm_sequence(dat, ROI, mode='top', step=10, k_max=200, metric='correlation',
     for k in sizes:
         idx = order[:k]
         Xavg = np.nanmean(X[:, :, idx], axis=0)      # (time, k)
-        R = squareform(pdist(Xavg, metric=metric))   # (time, time)
+        R = squareform(pdist(Xavg, metric='correlation'))   # (time, time)
         rdms.append(R)
     return sizes, rdms
 
@@ -69,7 +70,11 @@ def rdv_redo(dat, ROI, mode='top', step=5, k_max=200, metric='correlation',
         idx = order[:k]
         Ximg = X[:, :, idx] # (units, time, images)
         Xrdv = np.array([pdist(Ximg[:, t, :].T, metric='correlation') for t in range(Ximg.shape[1])])
-        R = squareform(pdist(Xrdv, metric=metric))   # (time, time)
+        if metric == 'spearman':
+            Xrdv = np.apply_along_axis(rankdata, 1, Xrdv)   # rank each row
+            R = squareform(pdist(Xrdv, metric='correlation'))   # (time, time)
+        else:
+            R = squareform(pdist(Xrdv, metric=metric))   # (time, time)
         rdvs.append(R)
     return sizes, rdvs
 
