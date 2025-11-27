@@ -12,13 +12,13 @@ import imageio.v2 as iio
 
 from _grid import *
 
-DATA_DIR = '../../datasets/NNN/face_roi_data.pkl'
+DATA_DIR = '../../datasets/NNN/body_roi_data.pkl'
 dat = pd.read_pickle(DATA_DIR)
-# ROI_LIST = ['AB3_18_B', 'MB3_12_B', 'AB3_12_B', 'AB3_17_B']
-ROI_LIST = ['Unknown_19_F']# , 'MF1_7_F', 'MF1_8_F', 'MF1_9_F']
+ROI_LIST = ['AB3_18_B', 'MB3_12_B', 'AB3_12_B', 'AB3_17_B']
+# ROI_LIST = ['Unknown_19_F']# , 'MF1_7_F', 'MF1_8_F', 'MF1_9_F']
 
 for roi in ROI_LIST:
-    metric = 'spearman'
+    metric = 'correlation'
     SAVE_PATH = f'/Users/aim/Desktop/HVRD/workspace/dynamics/gifs/{roi}_{metric}.gif'
     out = build_grid_gif(dat, [roi], step=1, k_max=200, metric=metric, out_path=SAVE_PATH)
     print('Saved:', roi)
