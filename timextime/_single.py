@@ -12,10 +12,12 @@ import imageio.v2 as iio
 
 from _grid import *
 
-DATA_DIR = '../../datasets/NNN/body_roi_data.pkl'
+DATA_DIR = '../../datasets/NNN/object_roi_data.pkl'
 dat = pd.read_pickle(DATA_DIR)
-ROI_LIST = ['AB3_18_B', 'MB3_12_B', 'AB3_12_B', 'AB3_17_B']
+# ROI_LIST = ['AB3_18_B', 'MB3_12_B', 'AB3_12_B', 'AB3_17_B']
 # ROI_LIST = ['Unknown_19_F']# , 'MF1_7_F', 'MF1_8_F', 'MF1_9_F']
+ROI_LIST = ['PITP4_10_O', 'Unknown_6_O', 'MO1s2_5_O', 'Unknown_16_O',
+ 'Unknown_26_O', 'AO5_25_O']
 
 for roi in ROI_LIST:
     metric = 'correlation'
