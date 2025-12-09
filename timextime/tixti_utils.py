@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.spatial.distance import pdist, cdist, squareform
 from scipy.stats import pearsonr, spearmanr, entropy, rankdata
+from tqdm import tqdm
 
 # some CONFIG parameters
 RAND = 0
