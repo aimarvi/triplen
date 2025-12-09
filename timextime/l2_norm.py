@@ -1,5 +1,10 @@
 import os
+import pickle
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy.ndimage import gaussian_filter1d
+
 import tixti_utils as tut
 
 # some CONFIG parameters
@@ -54,12 +59,12 @@ for _roi in ROI_LIST:
 
         ## single time point RDM, or average over previous time step chunk
         # R0 = rdms[step][triu]
-        R0 = np.mean(np.array([rdm[triu] for rdm in rdms[0:step]]), axis=0) #######################################
-        for k in np.arange(1*step, len(rdms), step):
+        R0 = np.mean(np.array([rdm[triu] for rdm in rdms[0:L2_STEP]]), axis=0) #######################################
+        for k in np.arange(1*L2_STEP, len(rdms), L2_STEP):
             prev = R0
             ## same as above
             # R0 = rdms[t-1][triu]
-            R0 = np.mean(np.array([rdm[triu] for rdm in rdms[k:k+step]]), axis=0) ######################################
+            R0 = np.mean(np.array([rdm[triu] for rdm in rdms[k:k+L2_STEP]]), axis=0) ######################################
     
             ## difference metric for scale K
             ## this is L2
@@ -106,3 +111,8 @@ for r in ROI_LIST:
     ax.set_title(r)
     plt.tight_layout()
     plt.show()
+
+# save optimal K values for each ROI
+SAVE_DIR = os.path.join(DATA_DIR, f'{CATEGORY}_mins.pkl')
+with open(SAVE_DIR, 'wb') as f:
+    pickle.dump(mins, f)

@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from scipy.spatial.distance import pdist, cdist, squareform
 from scipy.stats import pearsonr, spearmanr, entropy, rankdata
+from scipy.ndimage import gaussian_filter1d
+
 from tqdm import tqdm
 
 # some CONFIG parameters
