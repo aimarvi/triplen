@@ -46,6 +46,8 @@ for _roi in ROI_LIST:
     roi_dict = cache[_roi]
     sizes = roi_dict['sizes_top']
    
+    # the 'shuff' mode should really be bootstrapped...
+    # but 'shuff' is not used to calculate the optimal k, so here it is just for visualization
     for mode in ['top', 'shuff']:
         rdms = roi_dict[f'{mode}_rdms']
         triu = np.triu_indices_from(rdms[0], k=1)
@@ -64,3 +66,43 @@ for _roi in ROI_LIST:
             diff = np.sqrt(np.sum((R0)**2))
     
             diffs.loc[len(diffs)] = {'ROI': _roi, 'Scale': sizes[k-1], 'Derivative': diff, 'Mode': mode}
+
+# apply smoothing function (not necessary)
+diffs["diff_smooth"] = diffs["Derivative"].groupby(diffs["Mode"]).transform(
+    lambda v: gaussian_filter1d(v, sigma=1)
+)
+
+# collect optimal K for each ROI
+mins = {}
+for r in ROI_LIST:
+    fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+
+    d = diffs[diffs['ROI'] == r]
+
+    # main lineplot
+    sns.lineplot(data=d, x='Scale', y='Derivative', hue='Mode', alpha=0.5, ax=ax)
+    sns.lineplot(data=d, x='Scale', y='diff_smooth', hue='Mode', ax=ax)
+
+    # add red dot + legend label for each Mode separately
+    labels  = list(ax.get_legend_handles_labels()[1])
+
+    for i, mode in enumerate(['top', 'shuff']):
+        dm = d[(d['Mode'] == mode)]
+        idx_min = dm['diff_smooth'].idxmin()
+        if np.isnan(idx_min):
+            continue
+        x_min   = dm.loc[idx_min, 'Scale']
+        y_min   = dm.loc[idx_min, 'diff_smooth']
+
+        # draw red dot
+        mins[r] = (x_min, y_min)
+        h = ax.scatter(x_min, y_min, color='red', s=60, zorder=5)
+
+        # label for legend
+        labels[i] = f'{mode} min @ {int(x_min)}'
+
+    # PLOT RESULTS
+    ax.legend(ax.get_legend_handles_labels()[0], labels, frameon=False)
+    ax.set_title(r)
+    plt.tight_layout()
+    plt.show()
