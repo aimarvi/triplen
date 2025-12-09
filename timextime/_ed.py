@@ -15,7 +15,7 @@ RESP = slice(ONSET + RESP[0], ONSET + RESP[1])
 BASE = slice(ONSET + BASE[0], ONSET + BASE[1])
 
 DATA_DIR = '../../datasets/NNN/'
-CATEGORY = 'face'
+CATEGORY = 'object'
 
 dat = pd.read_pickle(os.path.join(DATA_DIR, (f'{CATEGORY}_roi_data.pkl')))
 print(f'Unique {CATEGORY} ROIs: {list(dat['roi'].unique())}')
@@ -61,7 +61,12 @@ for ROI, SC in mins.items():
                 })
         else:
             R, _ = tut.static_rdm(mode=mode, scale=scl, **common_kwargs)
-            ed = tut.ED2(R)
+            try:
+                ed = tut.ED2(R)
+            except Exception:
+                ed = np.nan
+                print(f'eigenvalues do not converge for ROI: {ROI}')
+
             all_rows.append({
                 'ROI': ROI,
                 'Method': method,
