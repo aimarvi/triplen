@@ -71,6 +71,27 @@ def geo_rdm(dat, roi, mode='top', step=5, k_max=200, metric='correlation', rando
     return sizes, rdvs
 
 def static_rdm(dat, roi, mode='top', scale=30, tstart=100, tend=400, metric='correlation', random_state=RAND):
+    '''
+    calculates a single Time x Time RDM, given:
+      (1) a scale (top k images)
+      (2) a time window (0-400 msec; 50 = image onset)
+
+    args:
+        dat (DataFrame): data
+        roi (str): ROI name (eg. 'MF1_7_F')
+        mode (str): ['top', 'shuff']
+            top: orders images by response magnitude
+            shuff: randomly selects images of the same scale
+        scale (int): manifold scale used to calculate Time x Time RDMs
+        tstart (int): start of time window
+        tend (int): end of time window
+        metric (str): distance metric for Time x Time RDM
+        random_state (int): random seed
+
+    returns:
+        R: array(Time x Time RDM) (square)
+        Xrdv: vectorized form of R (pre rank transformation) 
+    '''
     rng = np.random.default_rng(random_state)
 
     sig = dat[dat['p_value'] < 0.05]
@@ -100,6 +121,33 @@ def static_rdm(dat, roi, mode='top', scale=30, tstart=100, tend=400, metric='cor
     R = squareform(pdist(Xrank, metric=metric))      # (time, time)
 
     return R, Xrdv
+
+def landscape(dat, roi, rsp=RESP, random_state=RAND):
+    '''
+    normalized (baseline subtracted) response to each image within a given time window
+    uses global RESP variable by default
+
+    args:
+        dat (DataFrame): data
+        roi (str): ROI name (eg. 'MF1_7_F')
+        rsp (tuple): response window (default: RESP)
+        random_state (int): random seed
+
+    returns:
+        scores: scores for each image
+    '''
+    rng = np.random.default_rng(random_state)
+
+    sig = dat[dat['p_value'] < 0.05]
+    df = sig[sig['roi'] == roi]
+    if len(df) == 0:
+        raise ValueError(f"No data for ROI {roi}")
+    X = np.stack(df['img_psth'].to_numpy())          # (units, time, images)
+
+    # score images (using global RESP/BASE you already defined)
+    scores = np.nanmean(X[:, rsp, :], axis=(0, 1)) - np.nanmean(X[:, BASE, :], axis=(0, 1))
+
+    return scores
 
 def rdv(X):
     ind = np.triu_indices_from(X, k=1)
