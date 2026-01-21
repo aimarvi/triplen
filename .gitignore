@@ -4,6 +4,7 @@
 # large-ish data files
 img_pool.mat 
 k_labels.pkl
+alexnet/alexnet_acts.pkl
 
 # ignore autosave files
 .ipynb_checkpoints/
