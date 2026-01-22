@@ -2,9 +2,13 @@ import re
 import os
 import h5py
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 
+IMAGE_DIR = '../../datasets/NNN/NSD1000_LOC/'
+DATA_DIR = '../../datasets/NNN/'
 
-def fnames(datadir='/Users/aim/Desktop/HVRD/workspace/dynamics/datasets/NNN/'):
+def fnames(datadir=DATA_DIR):
     gus_fnames = [f for f in os.listdir(datadir) if re.match(r'^GoodUnit.*\.mat$', f)]
     proc_fnames = [f for f in os.listdir(datadir) if re.match(r'^Processed.*\.mat$', f)]
 
@@ -211,3 +215,30 @@ def get_unit_timecourse(row, start=None, end=None):
     if len(avg) < end:
         raise ValueError(f"avg_psth length {len(avg)} < required end index {end}")
     return avg[start:end]  # (T,)
+
+def load_image(idx, ax=None):
+    """
+    Given an index, plots the corresponding image in the NSD1000_LOC image set
+    
+    args:
+        idx (int): image idx from 0 - 1071
+        ax (Axis object): axis to plot image on
+    """
+    if ax is None:
+        fig, ax = plt.subplots(1,1)
+
+    if idx < 1000:
+        fname = f"{idx+1:04d}.bmp"
+    else:
+        fname = f"MFOB{idx-999:03d}.bmp"  # 1000 --> MFOB001, 1071 --> MFOB072
+    fpath = os.path.join(IMAGE_DIR, fname)
+    if os.path.exists(fpath):
+        img = mpimg.imread(fpath)
+        ax.imshow(img)
+        ax.set_title('')
+        ax.axis("off")
+    else:
+        ax.text(0.5, 0.5, "missing", ha="center", va="center")
+        ax.axis("off") 
+
+    return ax
