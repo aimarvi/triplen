@@ -7,5 +7,6 @@ k_labels.pkl
 alexnet/alexnet_acts.pkl
 
 # ignore autosave files
+__pycache__/
 .ipynb_checkpoints/
 *.asv
