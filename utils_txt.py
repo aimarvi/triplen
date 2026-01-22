@@ -157,13 +157,19 @@ def l2(X):
     return np.sqrt(np.sum((X)**2))
 
 def ED1(R):
+    """
+    Standard calculation of effective dimensionality
+    """
     S = -0.5 * R**2
     lam = np.linalg.eigvalsh(S)
     lam = np.clip(lam, 0, None)
     return (lam.sum()**2) / (lam**2).sum()
 
 def ED2(R):
-    # R = distance matrix
+    """
+    Alternate form of effective dimensionality 
+    Use when R is a matrix of distance values (eg. cosine distance, pearson r, spearman rho, etc)
+    """
     n = R.shape[0]
     J = np.eye(n) - np.ones((n, n))/n
     B = -0.5 * J @ (R**2) @ J

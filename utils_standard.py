@@ -234,7 +234,7 @@ def load_image(idx, ax=None):
     fpath = os.path.join(IMAGE_DIR, fname)
     if os.path.exists(fpath):
         img = mpimg.imread(fpath)
-        ax.imshow(img)
+        ax.imshow(img, cmap='gray')
         ax.set_title('')
         ax.axis("off")
     else:
