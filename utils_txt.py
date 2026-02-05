@@ -122,6 +122,48 @@ def static_rdm(dat, roi, mode='top', scale=30, tstart=100, tend=400, metric='cor
 
     return R, Xrdv
 
+def time_avg_rdm(dat, roi, window=RESP, images='all', metric='correlation', random_state=RAND):
+    """
+    Calculates a traditional, image RDM within a given response window
+
+    args:
+        dat (DataFrame): data
+        roi (str): ROI name (eg. 'MF1_7_F')
+        window (tuple): window for averaging neural responses
+        images (str): which image set to choose ('all', 'nsd', 'localizer')
+        metric (str): distance metric for RDM
+        random_state (int): random seed
+
+    returns:
+        R: array(Image RDM) (square)
+        Xrdv: vectorized form of R  
+
+    """
+
+    rng = np.random.default_rng(random_state)
+
+    sig = dat[dat['p_value'] < 0.05]
+    df = sig[sig['roi'] == roi]
+    if len(df) == 0:
+        raise ValueError(f"No data for ROI {ROI}")
+    X = np.stack(df['img_psth'].to_numpy())          # (units, time, images)
+
+    istart = 0; iend = X.shape[2];
+    match images:
+        case 'all':
+            pass
+        case 'nsd':
+            iend = 1000
+        case 'localizer':
+            istart = 1000
+
+    # average unit responses over time window
+    Xw = np.nanmean(X[:, window, istart:iend], axis=1)
+    Xrdv = pdist(Xw.T, metric=metric)
+    R = squareform(Xrdv)
+
+    return R, Xrdv
+
 def landscape(dat, roi, rsp=RESP, random_state=RAND):
     '''
     normalized (baseline subtracted) response to each image within a given time window
