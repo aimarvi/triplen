@@ -145,7 +145,7 @@ def time_avg_rdm(dat, roi, window=RESP, images='all', metric='correlation', rand
     sig = dat[dat['p_value'] < 0.05]
     df = sig[sig['roi'] == roi]
     if len(df) == 0:
-        raise ValueError(f"No data for ROI {ROI}")
+        raise ValueError(f"No data for ROI {roi}")
     X = np.stack(df['img_psth'].to_numpy())          # (units, time, images)
 
     istart = 0; iend = X.shape[2];

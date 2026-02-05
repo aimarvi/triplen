@@ -181,7 +181,7 @@ def build_grid_gif(dat, ROI_LIST, step=10, k_max=200, metric='correlation',
 
 if __name__ == '__main__':
     # ============ USAGE ================
-    DATA_DIR = '../../datasets/NNN/face_roi_data.pkl'
+    DATA_DIR = './../../datasets/NNN/face_roi_data.pkl'
     dat = pd.read_pickle(DATA_DIR)
     # ROI_LIST = ['Unknown_19_F', 'MF1_9_F', 'MF1_8_F', 'AF3_18_F', 'MF1_7_F', 'Unknown_5_F', 'AMC3_28_F']
     ROI_LIST = ['Unknown_19_F', 'MF1_7_F', 'MF1_8_F', 'MF1_9_F']
