@@ -58,9 +58,9 @@ def rdm_grid(dat, ROI_LIST, WIN=120, STEP=5, START=0, END=450,
         draw = ImageDraw.Draw(grid)
     
         # ---- frame-level title (centered) ----
-        frame_title = f'time {t}'   # or whatever you want
+        frame_title = f'{windows[t]}'   # or whatever you want
         draw.text(
-            (grid.width // 2, 10),
+            (grid.width // 2, 5),
             frame_title,
             fill=(0, 0, 0),
             anchor='ma',   # middle / above
