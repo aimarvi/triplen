@@ -99,8 +99,8 @@ if __name__ == "__main__":
     print(f"Unique {CAT} ROIs: {list(dat['roi'].unique())}")
 
     # ---- Choose ROI(s) ----
-    ROI_LIST = ["Unknown_19_F"]  # or a list: ["Unknown_19_F", "MF1_7_F"]
-    out = os.path.join(SAVE_DIR, f"test.gif")
+    ROI_LIST = ["MF1_8_F"]  # or a list: ["Unknown_19_F", "MF1_7_F"]
+    out = os.path.join(SAVE_DIR, f"test_{ROI_LIST[0]}.gif")
     out_path = rdm_grid(dat, ROI_LIST, out_path=out)
     print("Saved:", out_path)
 

@@ -110,6 +110,10 @@ def static_rdm(dat, roi, mode='top', scale=30, tstart=100, tend=400, metric='cor
     # restrict to desired time window
     Ximg = X[:, tstart:tend, idx]                    # (units, time, images)
 
+    # only look at localizer images
+    if scale == -1:
+        Ximg = X[:, tstart:tend, 1000:]
+
     # time-by-RDV (one RDV per timepoint)
     Xrdv = np.array([
         pdist(Ximg[:, t, :].T, metric='correlation')
