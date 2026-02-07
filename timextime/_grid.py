@@ -78,7 +78,7 @@ def rdv_redo(dat, ROI, mode='top', step=5, k_max=200, metric='correlation',
         rdvs.append(R)
     return sizes, rdvs
 
-def rdm_to_image(R, vmin, vmax, dpi=120, cmap='magma'):
+def rdm_to_image(R, vmin, vmax, dpi=120, cmap='rocket'):
     fig, ax = plt.subplots(figsize=(3,3), dpi=dpi)
     sns.heatmap(R, ax=ax, cmap=sns.color_palette(cmap, as_cmap=True),
                 vmin=vmin, vmax=vmax, square=True, cbar=False,
@@ -89,7 +89,7 @@ def rdm_to_image(R, vmin, vmax, dpi=120, cmap='magma'):
     plt.close(fig)
     return Image.fromarray(img)
 
-def make_colorbar_image(vmin, vmax, cmap='magma', height=400, dpi=120):
+def make_colorbar_image(vmin, vmax, cmap='rocket', height=400, dpi=120):
     fig, ax = plt.subplots(figsize=(0.4, 3), dpi=dpi)
     norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
     cb = mpl.colorbar.ColorbarBase(ax, cmap=plt.get_cmap(cmap),
@@ -138,7 +138,7 @@ def build_grid_gif(dat, ROI_LIST, step=10, k_max=200, metric='correlation',
     # height ≈ 2*H + extra text margin; we'll adjust after first grid
     first_top  = rdm_to_image(next(iter(seqs_top.values()))[0], vmin, vmax)
     H = first_top.size[1]
-    cb_img = make_colorbar_image(vmin, vmax, cmap='magma', height=2*H+40)
+    cb_img = make_colorbar_image(vmin, vmax, cmap='rocket', height=2*H+40)
 
     for t in range(T):
         top_tiles  = [rdm_to_image(seqs_top[roi][t],  vmin, vmax)  for roi in ROI_LIST]
