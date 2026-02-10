@@ -1,0 +1,11 @@
+README.md
+pyproject.toml
+src/manifold_dynamics/__init__.py
+src/manifold_dynamics/utils_models.py
+src/manifold_dynamics/utils_standard.py
+src/manifold_dynamics/utils_txt.py
+src/manifold_dynamics.egg-info/PKG-INFO
+src/manifold_dynamics.egg-info/SOURCES.txt
+src/manifold_dynamics.egg-info/dependency_links.txt
+src/manifold_dynamics.egg-info/requires.txt
+src/manifold_dynamics.egg-info/top_level.txt

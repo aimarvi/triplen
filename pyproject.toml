@@ -26,3 +26,6 @@ dependencies = [
 dev = [
     "ipykernel>=6.31.0",
 ]
+
+[tool.setuptools.packages.find]
+where = ["src"]
