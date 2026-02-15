@@ -5,8 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
-IMAGE_DIR = '../../datasets/NNN/NSD1000_LOC/'
-DATA_DIR = '../../datasets/NNN/'
+IMAGE_DIR = './../../datasets/NNN/NSD1000_LOC/'
+DATA_DIR = './../../datasets/NNN/'
 
 def fnames(datadir=DATA_DIR):
     gus_fnames = [f for f in os.listdir(datadir) if re.match(r'^GoodUnit.*\.mat$', f)]

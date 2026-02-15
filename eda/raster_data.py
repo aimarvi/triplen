@@ -7,10 +7,10 @@ import scipy.io
 
 import utils as utils
 
-datadir = '../../datasets/NNN/'
-SAVE_DIR = '../../datasets/NNN/'
+datadir = './../../datasets/NNN/'
+SAVE_DIR = './../../datasets/NNN/'
 fnames = utils.fnames(datadir)
-parcels = pd.read_excel('../demo/exclude_area.xls')
+parcels = pd.read_excel('./../../datasets/NNN/exclude_area.xls')
 
 cols = ['session', 'monkey', 'roi', 'raster']
 
@@ -19,7 +19,7 @@ total_units = 0
 batch_size_files = 10
 batch_num = 0
 
-REFDIR = '../../datasets/NNN/unit_data_full.pkl'
+REFDIR = './../../datasets/NNN/unit_data_full.pkl'
 ref = pd.read_pickle(REFDIR)
 ref = ref[~(ref['session'] == 29)]
 skip_count = 0
@@ -42,6 +42,11 @@ for i, pair in tqdm(enumerate(fnames), total=len(fnames)):
         session_num = int(m.group(1))
         monkey = int(m.group(3))
         
+#         ###################################### just looking at a specific session
+#         if int(session_num) not in [18, 20]:
+#             continue
+#         print(f'sucess! running for session {int(m.group(1))}')
+
         num_units = len(proc_data['UnitType'][0])
         this_parcel = parcels[parcels['SesIdx']==session_num]
         
@@ -58,12 +63,19 @@ for i, pair in tqdm(enumerate(fnames), total=len(fnames)):
         for unit_idx in range(num_units):
             ref_df = ref.iloc[total_units]
             total_units += 1
-            print(ref_df['roi'])
-            if (ref_df['p_value'] > 0.5) or (ref_df['roi'] is None) or ('F' not in ref_df['roi'].split('_')[-1]):
+            # print(ref_df['roi'])
+            if (ref_df['p_value'] > 0.5) or (ref_df['roi'] is None) or ('Unknown_19' not in ref_df['roi']):
                 skip_count += 1
                 # print(f'Skipping file {proc_fname}')
                 continue
-            print('not skipped')
+
+            ############################# only look at single units for now (02.2026)
+            if (ref_df['unit_type'] != 1):
+                skip_count += 1
+                print(f'not a single unit ----> Skipping file {proc_fname}')
+                continue
+
+            print('not skipped',ref_df['roi'])
             unit_raster = raster[unit_idx]  # (450, n_trials)
             time_points = unit_raster.shape[0]
             upos = unit_pos[unit_idx]
@@ -95,14 +107,14 @@ for i, pair in tqdm(enumerate(fnames), total=len(fnames)):
             }
             rows_batch.append(img_firing)
             
-        # --- INTERMEDIATE SAVE ---
-        if (len(rows_batch)>0) and ((i+1) % batch_size_files == 0 or (i+1) == len(fnames)):
-            filename = os.path.join(SAVE_DIR, f'raw_raster_data_batch{batch_num:03d}.pkl')
-            pd.DataFrame(rows_batch, columns=cols).to_pickle(filename)
-            print(f"Saved {len(rows_batch)} units to {filename} at file {i+1}")
-            print(f'Skipped {skip_count} units')
-            rows_batch = []  # clear for the next batch
-            batch_num += 1
+#         # --- INTERMEDIATE SAVE ---
+#         if (len(rows_batch)>0) and ((i+1) % batch_size_files == 0 or (i+1) == len(fnames)):
+#             filename = os.path.join(SAVE_DIR, f'raw_raster_data_batch{batch_num:03d}_Unknown19F.pkl')
+#             pd.DataFrame(rows_batch, columns=cols).to_pickle(filename)
+#             print(f"Saved {len(rows_batch)} units to {filename} at file {i+1}")
+#             print(f'Skipped {skip_count} units')
+#             rows_batch = []  # clear for the next batch
+#             batch_num += 1
 
     except AssertionError as e:
         print(f"Assertion failed for {proc_fname or gus_fname}: {e}")
@@ -114,4 +126,5 @@ for i, pair in tqdm(enumerate(fnames), total=len(fnames)):
 print(f"successfully loaded all units\ntotal units: {total_units}")
 
 df = pd.DataFrame(rows_batch, columns=cols)
-df.to_pickle(os.path.join(SAVE_DIR, 'trial_raster_data.pkl'))
+print(df)
+df.to_pickle(os.path.join(SAVE_DIR, 'trial_raster_data_Unknown19F.pkl'))
