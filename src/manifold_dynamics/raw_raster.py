@@ -1,5 +1,6 @@
 import os, sys, re
 from datetime import datetime
+from scipy import io
 
 import numpy as np
 import pandas as pd
@@ -8,22 +9,36 @@ import manifold_dynamics.utils_standard as sut
 
 DATADIR = './../../../datasets/NNN'
 
-def process_session(session_number):
+def process_session(roi_uid):
     '''
     Return the raw-est form of the data
     Data matrix of (units x time x stimuli x trials) for a single session
     
     '''
-    if (session_number < 1) or (session_number > 90):
-        print(f'===================== Could not process session {session_number} ==========================\nPlease provide a valid session number (1 - 90).')
+    parsed = roi_uid.split('.')
+    session_number = int(parsed[0])
+    roi = parsed[2]
+    category = parsed[3]
 
+    if not (1 <= session_number <= 90):
+        raise ValueError(
+            f'Could not process session {session_number}. '
+            'Please provide a valid session number (1–90).'
+        )
     # all_fnames is sorted by session number, 0 indexed
     all_fnames = sut.fnames(DATADIR)
     session_fnames = all_fnames[session_number-1]
     goodunit, processed = session_fnames[0], session_fnames[1]
 
+    # load in the relevant data
     goodunit_data = sut.load_mat(os.path.join(DATADIR, goodunit))
+    processed_data = io.loadmat(os.path.join(DATADIR, processed))
+    unique_id_data = pd.read_csv(os.path.join(DATADIR, 'roi-uid.csv'))
+
     raster_raw = goodunit_data['GoodUnitStrc']['Raster']
+    unit_positions = processed_data['pos'].squeeze()
+    row = unique_id_data.loc[unique_id_data['uid'] == roi_uid]
+    y1 = row['y1'].iloc[0]; y2 = row['y2'].iloc[0]
 
     # all valid trials
     trial_idx = goodunit_data['meta_data']['trial_valid_idx'].squeeze()
@@ -36,6 +51,12 @@ def process_session(session_number):
 
     units = []
     for uid, unit in enumerate(raster_raw):
+        # only take units inside the pre-defined area
+        this_position = unit_positions[uid]
+        if (this_position <= y1) or (this_position >= y2):
+            continue
+
+        # pre-make the (time, image, reps) raster
         time_points = unit.shape[0]  # (450, n_trials)
         vals = np.full((time_points, num_imgs, max_reps), np.nan, dtype=float)
     
@@ -57,4 +78,7 @@ def process_session(session_number):
 
     return raster
 
-process_session(9)
+out = process_session('18.19.Unknown.F')
+print(out.shape)
+out = process_session('20.19.Unknown.F')
+print(out.shape)
