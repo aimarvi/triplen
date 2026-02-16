@@ -1,6 +1,9 @@
 README.md
 pyproject.toml
 src/manifold_dynamics/__init__.py
+src/manifold_dynamics/process_data.py
+src/manifold_dynamics/raw_raster.py
+src/manifold_dynamics/unique_label.py
 src/manifold_dynamics/utils_models.py
 src/manifold_dynamics/utils_standard.py
 src/manifold_dynamics/utils_txt.py

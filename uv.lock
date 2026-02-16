@@ -803,6 +803,19 @@ wheels = [
 ]
 
 [[package]]
+name = "gsn"
+version = "0.0.1"
+source = { git = "https://github.com/cvnlab/GSN.git#e04b4ecedb27bfecfe7cebd2c00d60029c199dbf" }
+dependencies = [
+    { name = "numpy", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
+    { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "scipy", version = "1.13.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
+    { name = "scipy", version = "1.17.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
+
+[[package]]
 name = "h5py"
 version = "3.14.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1461,8 +1474,9 @@ wheels = [
 [[package]]
 name = "manifold-dynamics"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
+    { name = "gsn" },
     { name = "h5py", version = "3.14.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "h5py", version = "3.15.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "imageio" },
@@ -1501,6 +1515,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "gsn", git = "https://github.com/cvnlab/GSN.git" },
     { name = "h5py", specifier = ">=3.14.0" },
     { name = "imageio", specifier = ">=2.37.2" },
     { name = "matplotlib", specifier = ">=3.9.4" },

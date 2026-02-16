@@ -4,6 +4,7 @@ Version: 0.1.0
 Summary: Add your description here
 Requires-Python: >=3.9
 Description-Content-Type: text/markdown
+Requires-Dist: gsn
 Requires-Dist: h5py>=3.14.0
 Requires-Dist: imageio>=2.37.2
 Requires-Dist: matplotlib>=3.9.4
@@ -19,6 +20,7 @@ Requires-Dist: statsmodels>=0.14.6
 Requires-Dist: torch>=2.8.0
 Requires-Dist: torchvision>=0.23.0
 Requires-Dist: tqdm>=4.67.2
+Requires-Dist: xlrd>=2.0.2
 
 # Triple-N Dataset (@aim)
 
