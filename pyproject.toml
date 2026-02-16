@@ -37,3 +37,7 @@ where = ["src"]
 
 [tool.uv.sources]
 gsn = { git = "https://github.com/cvnlab/GSN.git" }
+
+[build-system]
+requires = ['hatchling']
+build-backend = 'hatchling.build'
