@@ -5,10 +5,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
-IMAGE_DIR = './../../datasets/NNN/NSD1000_LOC/'
-DATA_DIR = './../../datasets/NNN/'
+DATADIR = '/Users/aim/Desktop/HVRD/workspace/datasets/NNN/'
+IMAGEDIR = os.path.join(DATADIR, 'NSD1000_LOC')
 
-def fnames(datadir=DATA_DIR):
+def fnames(datadir=DATADIR):
     gus_fnames = [f for f in os.listdir(datadir) if re.match(r'^GoodUnit.*\.mat$', f)]
     proc_fnames = [f for f in os.listdir(datadir) if re.match(r'^Processed.*\.mat$', f)]
 
@@ -231,7 +231,7 @@ def load_image(idx, ax=None):
         fname = f"{idx+1:04d}.bmp"
     else:
         fname = f"MFOB{idx-999:03d}.bmp"  # 1000 --> MFOB001, 1071 --> MFOB072
-    fpath = os.path.join(IMAGE_DIR, fname)
+    fpath = os.path.join(IMAGEDIR, fname)
     if os.path.exists(fpath):
         img = mpimg.imread(fpath)
         ax.imshow(img, cmap='gray')

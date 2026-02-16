@@ -1,13 +1,14 @@
 import os, sys, re
 from datetime import datetime
-from scipy import io
 
 import numpy as np
 import pandas as pd
+from scipy import io
+from tqdm import tqdm
 
 import manifold_dynamics.utils_standard as sut
 
-DATADIR = './../../../datasets/NNN'
+DATADIR = '/Users/aim/Desktop/HVRD/workspace/datasets/NNN'
 
 def process_session(roi_uid):
     '''
@@ -50,7 +51,7 @@ def process_session(roi_uid):
     max_reps = np.max(counts)
 
     units = []
-    for uid, unit in enumerate(raster_raw):
+    for uid, unit in tqdm(enumerate(raster_raw)):
         # only take units inside the pre-defined area
         this_position = unit_positions[uid]
         if (this_position <= y1) or (this_position >= y2):
@@ -78,7 +79,8 @@ def process_session(roi_uid):
 
     return raster
 
-out = process_session('18.19.Unknown.F')
-print(out.shape)
-out = process_session('20.19.Unknown.F')
-print(out.shape)
+if __name__ == '__main__':
+    out = process_session('18.19.Unknown.F')
+    print(out.shape)
+    out = process_session('20.19.Unknown.F')
+    print(out.shape)
