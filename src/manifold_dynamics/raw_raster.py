@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 import manifold_dynamics.utils_standard as sut
 
-DATADIR = '/Users/aim/Desktop/HVRD/workspace/datasets/NNN'
+DATADIR = '/n/holylabs/LABS/konkle_lab/Users/amarvi/workspace/datasets/NNN'
 
 def process_session(roi_uid):
     '''

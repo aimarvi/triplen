@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
-DATADIR = '/Users/aim/Desktop/HVRD/workspace/datasets/NNN/'
+DATADIR = '/n/holylabs/LABS/konkle_lab/Users/amarvi/workspace/datasets/NNN'
 IMAGEDIR = os.path.join(DATADIR, 'NSD1000_LOC')
 
 def fnames(datadir=DATADIR):
