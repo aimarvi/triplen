@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
+    "boto3>=1.42.51",
     "gsn",
     "h5py>=3.14.0",
     "imageio>=2.37.2",
