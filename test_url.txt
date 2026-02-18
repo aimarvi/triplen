@@ -1,0 +1,3 @@
+https://download.scidb.cn/download?fileId=078f48c89b103bbf666722374a947fc5&path=/V1/others/exclude_area.xls&shortLink=EfmY73&fileName=exclude_area.xls
+https://download.scidb.cn/download?fileId=afe231910f1e316158d699c318949453&path=/V1/others/StimuliNNN.zip&shortLink=EfmY73&fileName=StimuliNNN.zip
+https://download.scidb.cn/download?fileId=9dadacd2ea5201f5ec5504410ea804c9&path=/V1/others/AreaXYZ.xlsx&shortLink=EfmY73&fileName=AreaXYZ.xlsx
