@@ -50,7 +50,7 @@ def process_session(roi_uid, verbose=False):
     max_reps = np.max(counts)
 
     units = []
-    for uid, unit in tqdm(enumerate(raster_raw)):
+    for uid, unit in tqdm(enumerate(raster_raw), disable=not verbose):
         # only take units inside the pre-defined area
         this_position = unit_positions[uid]
         if (this_position <= y1) or (this_position >= y2):
