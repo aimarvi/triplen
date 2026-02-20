@@ -10,9 +10,9 @@ LOG = logging.getLogger('scidb_to_s3')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 # ============ SOME CONFIG PARAMS ===============
-URLS_TXT_PATH = '../../test_url.txt'  # set to your file path
+URLS_TXT_PATH = '../../scidb_url.txt'  # set to your file path
 S3_BUCKET = 'visionlab-members'
-S3_PREFIX = f'amarvi/datasets'  # customize
+S3_PREFIX = f'amarvi/datasets/triple-n/'  # customize
 MAX_WORKERS = 6
 SKIP_IF_EXISTS = True
 
@@ -102,7 +102,7 @@ def stream_http_to_s3(url: str, bucket: str, key: str, *, max_retries: int = 8) 
                 # Upload by streaming from response raw socket/file
                 boto3.client("s3").upload_fileobj(r.raw, bucket, key, Config=TRANSFER_CONFIG)
 
-            LOG.info("OK   %s -> s3://%s/%s", url, bucket, key)
+            LOG.info("✓ %s", key)
             return
 
         except (requests.Timeout, requests.ConnectionError, requests.HTTPError) as e:

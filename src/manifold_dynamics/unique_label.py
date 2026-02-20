@@ -1,12 +1,12 @@
 import os
 import pandas as pd
+import manifold_dynamics.PATHS as PTH
 
 # load spreadsheet (change to read_excel if .xlsx)
-DATADIR = './../../../datasets/NNN/exclude_area.xls'
-SAVEDIR = './../../../datasets/NNN/roi-uid.csv'
- 
-df = pd.read_excel(DATADIR)
+df = pd.read_excel(os.path.join(PTH.OTHERS, 'exclude_area.xls'))
 print(df.columns)
+
+savepath = os.path.join(PTH.OTHERS, 'roi-uid.csv')
 
 # choose the minimal identifying columns
 id_cols = ['SesIdx', 'RoiIndex', 'AREALABEL', 'Categoty']
@@ -24,5 +24,5 @@ df['uid'] = (
 out_df = df[['uid', 'y1', 'y2']]
 
 # save to new file
-out_df.to_csv(SAVEDIR, index=False)
-print('saved to:', SAVEDIR)
+out_df.to_csv(savepath, index=False)
+print('saved to:', savepath)

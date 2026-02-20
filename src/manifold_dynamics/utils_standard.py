@@ -1,16 +1,15 @@
-import re
-import os
-import h5py
+import re, os, h5py, fsspec, tempfile
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+from scipy import io
 
-DATADIR = '/n/holylabs/LABS/konkle_lab/Users/amarvi/workspace/datasets/NNN'
-IMAGEDIR = os.path.join(DATADIR, 'NSD1000_LOC')
+import manifold_dynamics.PATHS as PTH
+fs = fsspec.filesystem("s3")
 
-def fnames(datadir=DATADIR):
-    gus_fnames = [f for f in os.listdir(datadir) if re.match(r'^GoodUnit.*\.mat$', f)]
-    proc_fnames = [f for f in os.listdir(datadir) if re.match(r'^Processed.*\.mat$', f)]
+def fnames(rawdir=PTH.RAW, processdir=PTH.PROCESSED):
+    gus_fnames = [f.split('/')[-1] for f in fs.ls(rawdir) if re.match(r'^GoodUnit_.*\.mat$', f.split('/')[-1])]
+    proc_fnames = [f.split('/')[-1] for f in fs.ls(processdir) if re.match(r'^Processed.*\.mat$', f.split('/')[-1])]
 
     gus_keys = []
     for fn in gus_fnames:
@@ -60,6 +59,7 @@ def mat_struct_to_dict(f, obj, verbose=False):
             result[key] = mat_struct_to_dict(f, item)
         # If dataset, check if cell array (object refs) or regular array
         elif isinstance(item, h5py.Dataset):
+            # print(f'converting mat struct to dict for {key}...')
             # Cell arrays: h5py Datasets where dtype == object or ref
             if item.dtype == 'O' or h5py.check_dtype(ref=item.dtype) is not None:
                 cell_data = []
@@ -84,37 +84,56 @@ def mat_struct_to_dict(f, obj, verbose=False):
                 result[key] = item[()]
     return result
 
-def load_mat(filename, verbose=False):
+def load_mat(filename, fformat='v7.3', verbose=False):
     """
     Load a Matlab -v7.3 (HDF5-format) .mat file, dereference cell arrays, and
     return a dict of numpy arrays and nested dicts (for group/structs).
     """
-    with h5py.File(filename, 'r') as f:
-        data = {}
-        for key in f.keys():
-            obj = f[key]
-            if key.startswith('#'):
-                continue
-            if isinstance(obj, h5py.Group):
-                data[key] = mat_struct_to_dict(f, obj, verbose)
-            elif isinstance(obj, h5py.Dataset):
-                # Top-level cell array or dataset
-                if obj.dtype == 'O' or h5py.check_dtype(ref=obj.dtype) is not None:
-                    cell_data = []
-                    indices = np.ndindex(obj.shape)
-                    for idx in indices:
-                        ref = obj[idx]
-                        if isinstance(ref, (np.ndarray,)):
-                            ref = ref.item()
-                        arr = f[ref][()]
-                        cell_data.append(arr)
-                    cell_data = np.array(cell_data, dtype=object).reshape(obj.shape)
-                    data[key] = cell_data
-                else:
-                    data[key] = obj[()]
-        if verbose:
-            print(f'successfully loaded data with keys {data.keys()}')
-        return data
+    fs, path = fsspec.core.url_to_fs(filename)
+
+    with tempfile.NamedTemporaryFile(suffix=".h5") as tmp:
+        # print('temp file created')
+        fs.get(path, tmp.name)
+        with open(tmp.name, "rb") as fh:
+            sig = fh.read(8)
+        if fformat=='v7.3':  # v7.3
+            if verbose: print("v7.3 (HDF5)")
+            with h5py.File(tmp.name, 'r') as f:
+                # print('opened with h5py')
+                data = {}
+                for key in f.keys():
+                    obj = f[key]
+                    if key.startswith('#'):
+                        if verbose: print('skipping key...')
+                        continue
+                    if isinstance(obj, h5py.Group):
+                        data[key] = mat_struct_to_dict(f, obj, verbose)
+                    elif isinstance(obj, h5py.Dataset):
+                        # Top-level cell array or dataset
+                        if obj.dtype == 'O' or h5py.check_dtype(ref=obj.dtype) is not None:
+                            cell_data = []
+                            indices = np.ndindex(obj.shape)
+                            for idx in indices:
+                                ref = obj[idx]
+                                if isinstance(ref, (np.ndarray,)):
+                                    ref = ref.item()
+                                arr = f[ref][()]
+                                cell_data.append(arr)
+                            cell_data = np.array(cell_data, dtype=object).reshape(obj.shape)
+                            data[key] = cell_data
+                        else:
+                            data[key] = obj[()]
+                            if verbose: print(f'no data found for key: {key}')
+                if verbose:
+                    print(f'successfully loaded data with keys {data.keys()}')
+                return data
+        elif fformat=='v5':
+            if verbose: print("v5 (scipy.io.loadmat)")
+            return io.loadmat(tmp.name, squeeze_me=True, struct_as_record=False)
+        else:
+            print('Unknown format, exiting...')
+            return None
+                
     
 def compute_noise_ceiling(data_in):
     """
@@ -231,7 +250,7 @@ def load_image(idx, ax=None):
         fname = f"{idx+1:04d}.bmp"
     else:
         fname = f"MFOB{idx-999:03d}.bmp"  # 1000 --> MFOB001, 1071 --> MFOB072
-    fpath = os.path.join(IMAGEDIR, fname)
+    fpath = os.path.join(PTH.IMAGEDIR, fname)
     if os.path.exists(fpath):
         img = mpimg.imread(fpath)
         ax.imshow(img, cmap='gray')
