@@ -13,3 +13,6 @@ __pycache__/
 
 # old files
 OLD*
+
+# slurm outputs
+errlog/
