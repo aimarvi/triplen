@@ -8,6 +8,13 @@ import manifold_dynamics.PATHS as PTH
 fs = fsspec.filesystem("s3")
 
 def fnames(rawdir=PTH.RAW, processdir=PTH.PROCESSED):
+    '''
+    Return filenames for raw and processed data for each session
+
+    Args:
+        rawdir (Path): aws/s3 path to GoodUnit data. 
+        processdir (Path): aws/s3 path to Processed session data.
+    '''
     gus_fnames = [f.split('/')[-1] for f in fs.ls(rawdir) if re.match(r'^GoodUnit_.*\.mat$', f.split('/')[-1])]
     proc_fnames = [f.split('/')[-1] for f in fs.ls(processdir) if re.match(r'^Processed.*\.mat$', f.split('/')[-1])]
 

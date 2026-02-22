@@ -7,13 +7,16 @@ from scipy import io
 from tqdm import tqdm
 
 import manifold_dynamics.utils_standard as sut
-import manifold_dynamics.PATHS as PTH
+import manifold_dynamics.paths as pth
 
-def process_session(roi_uid, verbose=False):
+def extract_session_raster(roi_uid, verbose=False):
     '''
     Return the raw-est form of the data
     Data matrix of (units x time x stimuli x trials) for a single session
-    
+
+    Args:
+        roi_uid (str): corresponds to a unique ROI ID from roi-uid.csv (see ./unique_label.py)
+        verbose (boolean): enable tqdm bar + intermediate print statements
     '''
     parsed = roi_uid.split('.')
     session_number = int(parsed[0])
@@ -26,14 +29,14 @@ def process_session(roi_uid, verbose=False):
             'Please provide a valid session number (1–90).'
         )
     # all_fnames is sorted by session number, 0 indexed
-    all_fnames = sut.fnames(PTH.RAW, PTH.PROCESSED)
+    all_fnames = sut.fnames(pth.RAW, pth.PROCESSED)
     session_fnames = all_fnames[session_number-1]
     goodunit, processed = session_fnames[0], session_fnames[1]
 
     # load in the relevant data
-    goodunit_data = sut.load_mat(os.path.join(PTH.RAW, goodunit), fformat='v7.3', verbose=verbose)
-    processed_data = sut.load_mat(os.path.join(PTH.PROCESSED, processed), fformat='v5', verbose=verbose)
-    unique_id_data = pd.read_csv(os.path.join(PTH.OTHERS, 'roi-uid.csv'))
+    goodunit_data = sut.load_mat(os.path.join(pth.RAW, goodunit), fformat='v7.3', verbose=verbose)
+    processed_data = sut.load_mat(os.path.join(pth.PROCESSED, processed), fformat='v5', verbose=verbose)
+    unique_id_data = pd.read_csv(os.path.join(pth.OTHERS, 'roi-uid.csv'))
 
     raster_raw = goodunit_data['GoodUnitStrc']['Raster']
     unit_positions = processed_data['pos'].squeeze()
@@ -80,9 +83,9 @@ def process_session(roi_uid, verbose=False):
 
 if __name__ == '__main__':
     print('starting first session...')
-    out = process_session('18.19.Unknown.F')
+    out = extract_session_raster('18.19.Unknown.F')
     print('18.19.Unknown.F DONE:', out.shape)
 
     print('starting second session...')
-    out = process_session('20.19.Unknown.F')
+    out = extract_session_raster('20.19.Unknown.F')
     print('20.19.Unknown.F DONE:', out.shape)

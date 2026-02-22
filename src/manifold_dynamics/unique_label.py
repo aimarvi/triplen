@@ -2,6 +2,13 @@ import os
 import pandas as pd
 import manifold_dynamics.PATHS as PTH
 
+'''
+make a unique ID for each fMRI-defined ROI
+ROIs have specific values (y1, y2) along shank
+
+save to s3://{USER}/datasets/triple-n/others/roi-uid.csv
+'''
+
 # load spreadsheet (change to read_excel if .xlsx)
 df = pd.read_excel(os.path.join(PTH.OTHERS, 'exclude_area.xls'))
 print(df.columns)

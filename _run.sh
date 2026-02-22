@@ -11,10 +11,10 @@ cd /n/holylabs/LABS/konkle_lab/Users/amarvi/workspace/manifold-dynamics
 ls -la
 
 # run as a module (i think?)
-# uv run python -m manifold_dynamics.raw_raster
+# uv run python -m manifold_dynamics.session_raster_extraction
 
 # mutli-function via sbatch array
 uv run python eda/single_session_raster.py roi-uid.csv single-session-raster
 
 # run the script by abs. path 
-# uv run python src/manifold_dynamics/raw_raster.py
+# uv run python src/manifold_dynamics/session_raster_extraction.py
