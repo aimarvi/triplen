@@ -8,15 +8,13 @@ from scipy.stats import pearsonr
 
 from gsn.perform_gsn import perform_gsn
 
-from manifold_dynamics.raw_raster import process_session
-import manifold_dynamics.process_data as prcs
+import manifold_dynamics.session_raster_extraction as ser
+import manifold_dynamics.spike_response_stats as srs
+import manifold_dynamics.paths as pth
 
-DATADIR = './../../datasets/NNN/'
-SAVEDIR = './../../../buckets/manifold-dynamics/denoise'
-if not os.path.exists(SAVEDIR):
-    os.makedirs(SAVEDIR)
-uid_sheet = pd.read_csv(os.path.join(DATADIR, 'roi-uid.csv'))
+uid_sheet = pd.read_csv(os.path.join(pth.OTHERS, 'roi-uid.csv'))
 unique_rois = uid_sheet['uid'].unique()
+SAVEDIR = '...'
 
 for roi_uid in tqdm(unique_rois):
     session_num = roi_uid.split('.')[0]
@@ -24,7 +22,7 @@ for roi_uid in tqdm(unique_rois):
         print(f'Session {session_num} done, skipping...')
         continue
 
-    out = process_session(roi_uid) # shape is (units, 450, 1072, reps)
+    out = ser.extract_session_raster(roi_uid) # shape is (units, 450, 1072, reps)
     print(f'Session {session_num} raster obtained!\nPerforming GSN...')
     
     ####### PERFORM GSN ON THE SINGLE ROI/SESSION
