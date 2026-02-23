@@ -34,8 +34,11 @@ dev = [
 [tool.uv]
 package = true
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.hatch.build.targets.wheel]
+packages = ['src/manifold_dynamics']
+
+[tool.hatch.build.targets.sdist]
+include = ['src/manifold_dynamics', 'README.md', 'pyproject.toml']
 
 [tool.uv.sources]
 gsn = { git = "https://github.com/cvnlab/GSN.git" }

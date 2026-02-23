@@ -34,8 +34,8 @@ def extract_session_raster(roi_uid, verbose=False):
     goodunit, processed = session_fnames[0], session_fnames[1]
 
     # load in the relevant data
-    goodunit_data = sut.load_mat(os.path.join(pth.RAW, goodunit), fformat='v7.3', verbose=verbose)
-    processed_data = sut.load_mat(os.path.join(pth.PROCESSED, processed), fformat='v5', verbose=verbose)
+    goodunit_data = ims.load_mat(os.path.join(pth.RAW, goodunit), fformat='v7.3', verbose=verbose)
+    processed_data = ims.load_mat(os.path.join(pth.PROCESSED, processed), fformat='v5', verbose=verbose)
     unique_id_data = pd.read_csv(os.path.join(pth.OTHERS, 'roi-uid.csv'))
 
     raster_raw = goodunit_data['GoodUnitStrc']['Raster']

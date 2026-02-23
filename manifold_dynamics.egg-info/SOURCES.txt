@@ -1,7 +1,0 @@
-README.md
-pyproject.toml
-manifold_dynamics.egg-info/PKG-INFO
-manifold_dynamics.egg-info/SOURCES.txt
-manifold_dynamics.egg-info/dependency_links.txt
-manifold_dynamics.egg-info/requires.txt
-manifold_dynamics.egg-info/top_level.txt
