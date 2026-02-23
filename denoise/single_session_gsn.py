@@ -1,4 +1,4 @@
-import os, fsspec, time
+import os, fsspec, time, sys
 
 import numpy as np
 import pandas as pd
@@ -11,10 +11,13 @@ import manifold_dynamics.paths as pth
 
 fs = fsspec.filesystem("s3")
 
-# outdir = os.path.join(pth.SAVEDIR, 'gsn')
-outdir = './'
+outdir = os.path.join(pth.SAVEDIR, 'denoising')
 uid_sheet = pd.read_csv(os.path.join(pth.OTHERS, 'roi-uid.csv'))
 unique_rois = uid_sheet['uid'].unique()
+
+# run via sbatch array
+task_id = int(os.environ["SLURM_ARRAY_TASK_ID"])
+win = int(sys.argv[1])
 
 roi_uid = unique_rois[1]
 inpath = os.path.join(pth.PROCESSED, 'single-session-raster', f'{roi_uid}.npy')
@@ -31,8 +34,8 @@ print(f'time: {dt:.2f} sec')
 print(f'throughput: {(size_bytes/1e6)/dt:.2f} MB/s')
 ### end time
 
-win = 10
-cov_df, ncsnr_df = session_gsn(out, win=win, overlap=False)
+# run GSN over time
+cov_df, ncsnr_df = session_gsn(out, win=win, overlap=False, verbose=False)
 
 #### PLOT ###
 customp = ['red', 'black']# sns.color_palette('Dark2')
@@ -45,8 +48,9 @@ ax.legend(title='')
 sns.despine(fig=fig, trim=True, offset=5)
 
 # save
-outpath = os.path.join(outdir, f'{roi_uid}_{win}_covariance.png')
-plt.savefig(outpath, dpi=300, transparent=True, bbox_inches='tight')
+outpath = os.path.join(outdir, f'{roi_uid}_w{win}_covariance.png')
+with fs.open(outpath, 'wb') as f:
+    plt.savefig(f, dpi=300, transparent=True, bbox_inches='tight')
 
 fig,ax = plt.subplots(1,1, figsize=(5,3))
 sns.lineplot(ncsnr_df, x='time', y='mean_abs_ncsnr', color='gray', ax=ax)
@@ -55,7 +59,8 @@ ax.set_ylabel('NCSNR')
 sns.despine(fig=fig, trim=True, offset=5)
 
 # save
-outpath = os.path.join(outdir, f'{roi_uid}_{win}_ncsnr.png')
-plt.savefig(outpath, dpi=300, transparent=True, bbox_inches='tight')
+outpath = os.path.join(outdir, f'{roi_uid}_w{win}_ncsnr.png')
+with fs.open(outpath, 'wb') as f:
+    plt.savefig(f, dpi=300, transparent=True, bbox_inches='tight')
 
 print(f'Saved figures for {roi_uid}!')

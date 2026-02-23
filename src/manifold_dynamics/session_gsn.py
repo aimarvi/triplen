@@ -12,7 +12,7 @@ def session_gsn(
     overlap=True,
     scaling=1e3,
     time_offset=0,
-    wantverbose=False,
+    verbose=False,
 ):
     '''
     run gsn in sliding windows over a 4d raster:
@@ -24,7 +24,7 @@ def session_gsn(
         overlap (bool): if True, default step=1; else default step=win
         scaling (float): multiply Xavg by this before gsn
         time_offset (int): add to reported time (useful if aligning to onset)
-        wantverbose (bool): passed to perform_gsn
+        verbose (bool): passed to perform_gsn
 
     returns:
         cov_df: long df with one row per time x type and cov vector + summary
@@ -49,12 +49,12 @@ def session_gsn(
     # note: gsn returns (units x units) covariances
     triu = None
 
-    for t0 in tqdm(range(0, out.shape[1] - win + 1, step), leave=False):
+    for t0 in tqdm(range(0, out.shape[1] - win + 1, step), disable=not verbose):
         Xw = out[:, t0:t0 + win, :, :]            # (units, win, images, reps)
         Xavg = np.nanmean(Xw, axis=1)             # (units, images, reps)
         Xavg = Xavg * scaling
 
-        results = perform_gsn(Xavg, {'wantverbose': wantverbose})
+        results = perform_gsn(Xavg, {'wantverbose': verbose})
         sigcov = results['cSb']
         noisecov = results['cNb']
         ncsnr = results['ncsnr']
@@ -66,6 +66,8 @@ def session_gsn(
 
         sig_vec = sigcov[triu]
         noi_vec = noisecov[triu]
+        sigvar_vec = np.diag(sigcov)
+        noivar_vec = np.diag(noisecov)
 
         cov_rows.append({
             'time': t_report,
@@ -76,6 +78,8 @@ def session_gsn(
             'type': 'signal',
             'covariance': sig_vec,
             'mean_abs_covariance': np.nanmean(np.abs(sig_vec)),
+            'variance': sigvar_vec,
+            'mean_abs_variance': np.nanmean(np.abs(sigvar_vec)),
         })
         cov_rows.append({
             'time': t_report,
@@ -86,6 +90,8 @@ def session_gsn(
             'type': 'noise',
             'covariance': noi_vec,
             'mean_abs_covariance': np.nanmean(np.abs(noi_vec)),
+            'variance': noivar_vec,
+            'mean_abs_variance': np.nanmean(np.abs(noivar_vec)),
         })
 
         ncsnr_rows.append({
