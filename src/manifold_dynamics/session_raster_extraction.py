@@ -6,7 +6,7 @@ import pandas as pd
 from scipy import io
 from tqdm import tqdm
 
-import manifold_dynamics.utils_standard as sut
+import manifold_dynamics.io_matlab_s3 as ims
 import manifold_dynamics.paths as pth
 
 def extract_session_raster(roi_uid, verbose=False):
@@ -29,7 +29,7 @@ def extract_session_raster(roi_uid, verbose=False):
             'Please provide a valid session number (1–90).'
         )
     # all_fnames is sorted by session number, 0 indexed
-    all_fnames = sut.fnames(pth.RAW, pth.PROCESSED)
+    all_fnames = ims.fnames(pth.RAW, pth.PROCESSED)
     session_fnames = all_fnames[session_number-1]
     goodunit, processed = session_fnames[0], session_fnames[1]
 
