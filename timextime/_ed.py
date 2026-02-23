@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
-import tixti_utils as tut
+import manifold_dynamics.tuning_utils as tut
 
 # some CONFIG parameters
 RAND = 0

@@ -1,6 +1,4 @@
-import os, sys
-if './..' not in sys.path:
-    sys.path.insert(0, './..')
+import os
 
 import pandas as pd
 import numpy as np
@@ -9,7 +7,7 @@ import imageio.v2 as iio
 
 from tqdm import tqdm
 
-import utils_txt as tut
+import manifold_dynamics.tuning_utils as tut
 from _grid import rdm_to_image, make_colorbar_image
 font = ImageFont.load_default(size=32)
 

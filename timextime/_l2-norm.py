@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.ndimage import gaussian_filter1d
 
-import tixti_utils as tut
+import manifold_dynamics.tuning_utils as tut
 
 # some CONFIG parameters
 RAND = 0
