@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-import manifold_dynamics.PATHS as PTH
+import manifold_dynamics.path as pth 
 
 '''
 make a unique ID for each fMRI-defined ROI
@@ -10,10 +10,10 @@ save to s3://{USER}/datasets/triple-n/others/roi-uid.csv
 '''
 
 # load spreadsheet (change to read_excel if .xlsx)
-df = pd.read_excel(os.path.join(PTH.OTHERS, 'exclude_area.xls'))
+df = pd.read_excel(os.path.join(pth.OTHERS, 'exclude_area.xls'))
 print(df.columns)
 
-savepath = os.path.join(PTH.OTHERS, 'roi-uid.csv')
+savepath = os.path.join(pth.OTHERS, 'roi-uid.csv')
 
 # choose the minimal identifying columns
 id_cols = ['SesIdx', 'RoiIndex', 'AREALABEL', 'Categoty']

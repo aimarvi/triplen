@@ -1,0 +1,135 @@
+import re, os, h5py, fsspec, tempfile
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+from scipy import io
+
+import manifold_dynamics.paths as pth
+fs = fsspec.filesystem("s3")
+
+def compute_noise_ceiling(data_in):
+    """
+    Compute the noise ceiling signal-to-noise ratio (SNR) and percentage noise ceiling for each unit.
+    
+    Parameters:
+    ----------
+    data_in : np.ndarray
+        A 3D array of shape (units/voxels, conditions, trials), representing the data for which to compute 
+        the noise ceiling. Each unit requires more than 1 trial for each condition.
+
+    Returns:
+    -------
+    noiseceiling : np.ndarray
+        The noise ceiling for each unit, expressed as a percentage.
+    ncsnr : np.ndarray
+        The noise ceiling signal-to-noise ratio (SNR) for each unit.
+    signalvar : np.ndarray
+        The signal variance for each unit.
+    noisevar : np.ndarray
+        The noise variance for each unit.
+    """
+    # noisevar: mean variance across trials for each unit
+    noisevar = np.nanmean(np.std(data_in, axis=2, ddof=1) ** 2, axis=1)
+
+    # datavar: variance of the trial means across conditions for each unit
+    datavar = np.nanstd(np.nanmean(data_in, axis=2), axis=1, ddof=1) ** 2
+
+    # signalvar: signal variance, obtained by subtracting noise variance from data variance
+    signalvar = np.maximum(datavar - noisevar / data_in.shape[2], 0)  # Ensure non-negative variance
+
+    # ncsnr: signal-to-noise ratio (SNR) for each unit
+    ncsnr = np.sqrt(signalvar) / np.sqrt(noisevar)
+
+    # noiseceiling: percentage noise ceiling based on SNR
+    noiseceiling = 100 * (ncsnr ** 2 / (ncsnr ** 2 + 1 / data_in.shape[2]))
+
+    return noiseceiling, ncsnr, signalvar, noisevar
+
+def derag_fr(data_in, period='early'):
+    """
+    Return the per-trial firing rate data for all units in a specific time period
+    
+    Arguments:
+    ---------
+    data_in : pd.DataFrame
+    period : str 
+        'pre' --> -25 to 30 ms
+        'early' --> 50 to 120 ms
+        'late' --> 120 to 240 ms
+                
+    Returns:
+    --------
+    stacked : np.ndarray (num_units, images, trials)
+        nan padded
+    """
+    # the array is still ragged
+    in_period = list(data_in[period])
+    num_units = len(in_period)
+    num_images = len(in_period[0])
+
+    # maximum number of reps for a single image
+    max_reps = max(
+        len(arr) if hasattr(arr, "__len__") else 0
+        for unit in in_period
+        for arr in unit)
+
+    # pad with nan
+    stacked = np.full((num_units, num_images, max_reps), np.nan, dtype=float)
+    for unit_i, unit in enumerate(in_period):
+        for img in range(num_images):
+            arr = np.array(unit[img])
+            reps_here = len(arr)
+            if reps_here > 0:
+                stacked[unit_i, img, :reps_here] = arr
+                
+    return stacked
+    
+def get_unit_timecourse(row, start=None, end=None):
+    """
+    Return the unit's avg PSTH within the analysis window.
+    If avg_psth is missing, derive it by averaging img_psth across images.
+    Ensures shape (T,) where T=end-start.
+    """
+    avg = row['avg_psth']
+    if avg is None or (isinstance(avg, float) and np.isnan(avg)):
+        A = np.asarray(row['img_psth'])  # (time, images)
+        if A.ndim != 2:
+            raise ValueError("img_psth must be 2D (time x images)")
+        avg = A.mean(axis=1)
+    avg = np.asarray(avg)
+    if avg.ndim != 1:
+        raise ValueError("avg_psth must be 1D (time,)")
+    # take all values if start/end is not specified
+    if start is None:
+        start = 0
+        end = len(avg)
+    if len(avg) < end:
+        raise ValueError(f"avg_psth length {len(avg)} < required end index {end}")
+    return avg[start:end]  # (T,)
+
+def load_image(idx, ax=None):
+    """
+    Given an index, plots the corresponding image in the NSD1000_LOC image set
+    
+    args:
+        idx (int): image idx from 0 - 1071
+        ax (Axis object): axis to plot image on
+    """
+    if ax is None:
+        fig, ax = plt.subplots(1,1)
+
+    if idx < 1000:
+        fname = f"{idx+1:04d}.bmp"
+    else:
+        fname = f"MFOB{idx-999:03d}.bmp"  # 1000 --> MFOB001, 1071 --> MFOB072
+    fpath = os.path.join(pth.IMAGEDIR, fname)
+    if os.path.exists(fpath):
+        img = mpimg.imread(fpath)
+        ax.imshow(img, cmap='gray')
+        ax.set_title('')
+        ax.axis("off")
+    else:
+        ax.text(0.5, 0.5, "missing", ha="center", va="center")
+        ax.axis("off") 
+
+    return ax
