@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 
 import manifold_dynamics.session_raster_extraction as sre
+import manifold_dynamics.io_matlab_s3 as ims
 import manifold_dynamics.paths as pth
 
 fs = fsspec.filesystem("s3")
@@ -20,7 +21,7 @@ uid = uids[task_id]
 
 # process the session and save to aws bucket
 out_path = os.path.join(out_dir, f"{uid}.npy")
-if not os.path.exists(out_path):
+if not ims.exists(out_path):
     out = sre.extract_session_raster(uid, verbose=True)
     print(f'\n\nSaving to {out_path}...')
     with fs.open(out_path, 'wb') as f:
