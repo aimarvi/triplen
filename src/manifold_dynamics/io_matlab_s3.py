@@ -140,3 +140,10 @@ def load_mat(filename, fformat='v7.3', verbose=False):
         else:
             print('Unknown format, exiting...')
             return None
+
+def exists(url):
+    '''
+    checks if the given path name exists in an amazon s3 bucket
+    '''
+    fs, path = fsspec.core.url_to_fs(url)
+    return fs.exists(path)

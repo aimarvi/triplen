@@ -15,7 +15,7 @@ ls -la
 
 # mutli-function via sbatch array
 # uv run python eda/single_session_raster.py roi-uid.csv single-session-raster
-uv run python denoise/single_session_gsn.py 10 # <- window size, non-overlapping
+uv run python denoise/single_session_gsn.py 1 denoise False 
 
 # run the script by abs. path 
 # uv run python src/manifold_dynamics/session_raster_extraction.py
