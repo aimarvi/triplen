@@ -14,6 +14,7 @@ dependencies = [
     "numpy>=2.0.2",
     "pandas>=2.3.3",
     "pillow>=11.3.0",
+    "psn",
     "pyarrow>=21.0.0",
     "pyvista>=0.46.5",
     "s3fs>=0.4.2",
@@ -43,6 +44,7 @@ include = ['src/manifold_dynamics', 'README.md', 'pyproject.toml']
 
 [tool.uv.sources]
 gsn = { git = "https://github.com/cvnlab/GSN.git" }
+psn = { git = "https://github.com/jacob-prince/PSN.git", rev = "refactor-dec25" }
 
 [build-system]
 requires = ['hatchling']
