@@ -170,49 +170,108 @@ def specific_static_rdm(dat, roi, indices, tstart=100, tend=400, metric='correla
 
     return R, Xrdv
     
-    
 
 def time_avg_rdm(dat, roi, window=RESP, images='all', metric='correlation', random_state=RAND):
-    """
-    Calculates a traditional, image RDM within a given response window
+    '''
+    image rdm within a response window.
 
-    args:
-        dat (DataFrame): data
-        roi (str): ROI name (eg. 'MF1_7_F')
-        window (tuple): window for averaging neural responses
-        images (str): which image set to choose ('all', 'nsd', 'localizer')
-        metric (str): distance metric for RDM
-        random_state (int): random seed
-
-    returns:
-        R: array(Image RDM) (square)
-        Xrdv: vectorized form of R  
-
-    """
-
+    images can be:
+      - str: 'all' | 'nsd' | 'localizer'
+      - array-like: explicit image indices (0-based)
+      - slice: explicit slice
+      - tuple: (start, end) interpreted as python slice [start:end]
+    '''
     rng = np.random.default_rng(random_state)
 
     sig = dat[dat['p_value'] < 0.05]
     df = sig[sig['roi'] == roi]
     if len(df) == 0:
-        raise ValueError(f"No data for ROI {roi}")
-    X = np.stack(df['img_psth'].to_numpy())          # (units, time, images)
+        raise ValueError(f'no data for roi {roi}')
+    X = np.stack(df['img_psth'].to_numpy())  # (units, time, images)
 
-    istart = 0; iend = X.shape[2];
-    match images:
-        case 'all':
-            pass
-        case 'nsd':
-            iend = 1000
-        case 'localizer':
-            istart = 1000
+    # resolve which images to use
+    if isinstance(images, str):
+        if images == 'all':
+            idx = slice(None)
+        elif images == 'nsd':
+            idx = slice(0, min(1000, X.shape[2]))
+        elif images == 'localizer':
+            idx = slice(1000, X.shape[2])
+        elif images == 'shuff_nsd':
+            # example: same size as nsd but shuffled (because people always ask)
+            n = min(1000, X.shape[2])
+            idx = rng.permutation(np.arange(n))
+        else:
+            raise ValueError(f"unknown images='{images}' (use 'all', 'nsd', 'localizer', or indices)")
+    elif isinstance(images, slice):
+        idx = images
+    elif isinstance(images, tuple) and len(images) == 2 and all(isinstance(x, (int, np.integer, type(None))) for x in images):
+        idx = slice(images[0], images[1])
+    else:
+        idx = np.asarray(images)
+        if idx.ndim != 1:
+            raise ValueError('images indices must be 1d')
+        # allow boolean mask or integer indices
+        if idx.dtype == bool:
+            if idx.size != X.shape[2]:
+                raise ValueError(f'boolean mask length {idx.size} != n_images {X.shape[2]}')
+        else:
+            idx = idx.astype(int)
+            if (idx < 0).any() or (idx >= X.shape[2]).any():
+                raise ValueError('image indices out of bounds')
 
     # average unit responses over time window
-    Xw = np.nanmean(X[:, window, istart:iend], axis=1)
+    Xw = np.nanmean(X[:, window, idx], axis=1)  # (units, images_sel)
     Xrdv = pdist(Xw.T, metric=metric)
     R = squareform(Xrdv)
-
     return R, Xrdv
+
+def idkman(dat, roi, window=RESP, images='all', random_state=RAND):
+    '''
+    just return the unit x image matrix
+    '''
+    rng = np.random.default_rng(random_state)
+
+    sig = dat[dat['p_value'] < 0.05]
+    df = sig[sig['roi'] == roi]
+    if len(df) == 0:
+        raise ValueError(f'no data for roi {roi}')
+    X = np.stack(df['img_psth'].to_numpy())  # (units, time, images)
+
+    # resolve which images to use
+    if isinstance(images, str):
+        if images == 'all':
+            idx = slice(None)
+        elif images == 'nsd':
+            idx = slice(0, min(1000, X.shape[2]))
+        elif images == 'localizer':
+            idx = slice(1000, X.shape[2])
+        elif images == 'shuff_nsd':
+            # example: same size as nsd but shuffled (because people always ask)
+            n = min(1000, X.shape[2])
+            idx = rng.permutation(np.arange(n))
+        else:
+            raise ValueError(f"unknown images='{images}' (use 'all', 'nsd', 'localizer', or indices)")
+    elif isinstance(images, slice):
+        idx = images
+    elif isinstance(images, tuple) and len(images) == 2 and all(isinstance(x, (int, np.integer, type(None))) for x in images):
+        idx = slice(images[0], images[1])
+    else:
+        idx = np.asarray(images)
+        if idx.ndim != 1:
+            raise ValueError('images indices must be 1d')
+        # allow boolean mask or integer indices
+        if idx.dtype == bool:
+            if idx.size != X.shape[2]:
+                raise ValueError(f'boolean mask length {idx.size} != n_images {X.shape[2]}')
+        else:
+            idx = idx.astype(int)
+            if (idx < 0).any() or (idx >= X.shape[2]).any():
+                raise ValueError('image indices out of bounds')
+
+    # average unit responses over time window
+    Xw = np.nanmean(X[:, window, idx], axis=1)  # (units, images_sel)
+    return Xw
 
 def landscape(dat, roi, rsp=RESP, random_state=RAND):
     '''
