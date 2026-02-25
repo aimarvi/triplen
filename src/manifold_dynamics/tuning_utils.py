@@ -126,6 +126,52 @@ def static_rdm(dat, roi, mode='top', scale=30, tstart=100, tend=400, metric='cor
 
     return R, Xrdv
 
+def specific_static_rdm(dat, roi, indices, tstart=100, tend=400, metric='correlation', random_state=RAND):
+    '''
+    calculates a single Time x Time RDM, given:
+      (1) a set number of images
+      (2) a time window (0-400 msec; 50 = image onset)
+
+    args:
+        dat (DataFrame): data
+        roi (str): ROI name (eg. 'MF1_7_F')
+        mode (str): ['top', 'shuff']
+            top: orders images by response magnitude
+            shuff: randomly selects images of the same scale
+        indice (Slice): image indices over which to calculate tuning RDM
+        tstart (int): start of time window
+        tend (int): end of time window
+        metric (str): distance metric for Time x Time RDM
+        random_state (int): random seed
+
+    returns:
+        R: array(Time x Time RDM) (square)
+        Xrdv: vectorized form of R (pre rank transformation) 
+    '''
+    rng = np.random.default_rng(random_state)
+
+    sig = dat[dat['p_value'] < 0.05]
+    df = sig[sig['roi'] == roi]
+    if len(df) == 0:
+        raise ValueError(f"No data for ROI {roi}")
+    X = np.stack(df['img_psth'].to_numpy())          # (units, time, images)
+    
+    Ximg = X[:, tstart:tend, indices]
+
+    # time-by-RDV (one RDV per timepoint)
+    Xrdv = np.array([
+        pdist(Ximg[:, t, :].T, metric='correlation')
+        for t in range(Ximg.shape[1])
+    ])  
+
+    # # Spearman: rank-transform rows, then use correlation distance across time
+    Xrank = np.apply_along_axis(rankdata, 1, Xrdv)
+    R = squareform(pdist(Xrank, metric=metric))      # (time, time)
+
+    return R, Xrdv
+    
+    
+
 def time_avg_rdm(dat, roi, window=RESP, images='all', metric='correlation', random_state=RAND):
     """
     Calculates a traditional, image RDM within a given response window
