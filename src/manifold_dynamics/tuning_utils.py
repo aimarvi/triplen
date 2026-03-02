@@ -14,6 +14,15 @@ ONSET = 50
 RESP = slice(ONSET + RESP[0], ONSET + RESP[1])
 BASE = slice(ONSET + BASE[0], ONSET + BASE[1])
 
+def response_array(dat, roi):
+    sig = dat[dat['p_value'] < 0.05]
+    df = sig[sig['roi'] == roi]
+    if len(df) == 0:
+        raise ValueError(f"No data for ROI {ROI}")
+    X = np.stack(df['img_psth'].to_numpy())          # (units, time, images)
+
+    return X
+
 def geo_rdm(dat, roi, mode='top', step=5, k_max=200, metric='correlation', random_state=RAND):
     '''
     calculates a series of Time x Time RDMs:
@@ -41,11 +50,8 @@ def geo_rdm(dat, roi, mode='top', step=5, k_max=200, metric='correlation', rando
     '''
     rng = np.random.default_rng(random_state)
 
-    sig = dat[dat['p_value'] < 0.05]
-    df = sig[sig['roi'] == roi]
-    if len(df) == 0:
-        raise ValueError(f"No data for ROI {ROI}")
-    X = np.stack(df['img_psth'].to_numpy())          # (units, time, images)
+    # all image responses, thresholded by p-val
+    X = response_array(dat, roi)
 
     # sort by response magnitude (baseline subtracted)
     scores = np.nanmean(X[:, RESP, :], axis=(0,1)) - np.nanmean(X[:, BASE, :], axis=(0,1))
@@ -94,11 +100,8 @@ def static_rdm(dat, roi, mode='top', scale=30, tstart=100, tend=400, metric='cor
     '''
     rng = np.random.default_rng(random_state)
 
-    sig = dat[dat['p_value'] < 0.05]
-    df = sig[sig['roi'] == roi]
-    if len(df) == 0:
-        raise ValueError(f"No data for ROI {roi}")
-    X = np.stack(df['img_psth'].to_numpy())          # (units, time, images)
+    # all image responses, thresholded by p-val
+    X = response_array(dat, roi)
 
     # score images (using global RESP/BASE you already defined)
     scores = np.nanmean(X[:, RESP, :], axis=(0, 1)) - np.nanmean(X[:, BASE, :], axis=(0, 1))
@@ -150,11 +153,8 @@ def specific_static_rdm(dat, roi, indices, tstart=100, tend=400, metric='correla
     '''
     rng = np.random.default_rng(random_state)
 
-    sig = dat[dat['p_value'] < 0.05]
-    df = sig[sig['roi'] == roi]
-    if len(df) == 0:
-        raise ValueError(f"No data for ROI {roi}")
-    X = np.stack(df['img_psth'].to_numpy())          # (units, time, images)
+    # all image responses, thresholded by p-val
+    X = response_array(dat, roi)
     
     Ximg = X[:, tstart:tend, indices]
 
@@ -183,11 +183,8 @@ def time_avg_rdm(dat, roi, window=RESP, images='all', metric='correlation', rand
     '''
     rng = np.random.default_rng(random_state)
 
-    sig = dat[dat['p_value'] < 0.05]
-    df = sig[sig['roi'] == roi]
-    if len(df) == 0:
-        raise ValueError(f'no data for roi {roi}')
-    X = np.stack(df['img_psth'].to_numpy())  # (units, time, images)
+    # all image responses, thresholded by p-val
+    X = response_array(dat, roi)
 
     # resolve which images to use
     if isinstance(images, str):
@@ -243,11 +240,8 @@ def unit_responses(dat, roi, window=RESP, images='all', random_state=RAND):
     '''
     rng = np.random.default_rng(random_state)
 
-    sig = dat[dat['p_value'] < 0.05]
-    df = sig[sig['roi'] == roi]
-    if len(df) == 0:
-        raise ValueError(f'no data for roi {roi}')
-    X = np.stack(df['img_psth'].to_numpy())  # (units, time, images)
+    # all image responses, thresholded by p-val
+    X = response_array(dat, roi)
 
     # resolve which images to use
     if isinstance(images, str):
@@ -300,11 +294,8 @@ def landscape(dat, roi, rsp=RESP, random_state=RAND):
     '''
     rng = np.random.default_rng(random_state)
 
-    sig = dat[dat['p_value'] < 0.05]
-    df = sig[sig['roi'] == roi]
-    if len(df) == 0:
-        raise ValueError(f"No data for ROI {roi}")
-    X = np.stack(df['img_psth'].to_numpy())          # (units, time, images)
+    # all image responses, thresholded by p-val
+    X = response_array(dat, roi)
 
     # score images (using global RESP/BASE you already defined)
     scores = np.nanmean(X[:, rsp, :], axis=(0, 1)) - np.nanmean(X[:, BASE, :], axis=(0, 1))
