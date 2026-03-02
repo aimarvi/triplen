@@ -226,9 +226,20 @@ def time_avg_rdm(dat, roi, window=RESP, images='all', metric='correlation', rand
     R = squareform(Xrdv)
     return R, Xrdv
 
-def idkman(dat, roi, window=RESP, images='all', random_state=RAND):
+def unit_responses(dat, roi, window=RESP, images='all', random_state=RAND):
     '''
-    just return the unit x image matrix
+    return unit responses during time window to a set of images
+
+    Args: 
+        dat (DataFrame): data
+        roi (str): ROI name (eg. 'MF1_7_F')
+        window (Slice): time window (msec)
+        images
+            (str): one of ('all', 'nsd', 'localizer', 'shuff_nsd')
+            OR
+            (np.array): image indices (0-1071)
+        random_state (int): random state
+        
     '''
     rng = np.random.default_rng(random_state)
 
@@ -269,8 +280,8 @@ def idkman(dat, roi, window=RESP, images='all', random_state=RAND):
             if (idx < 0).any() or (idx >= X.shape[2]).any():
                 raise ValueError('image indices out of bounds')
 
-    # average unit responses over time window
-    Xw = np.nanmean(X[:, window, idx], axis=1)  # (units, images_sel)
+    # average unit responses over time window. should be baseline corrected?
+    Xw = np.nanmean(X[:, window, idx], axis=1) # - np.nanmean(X[:, BASE, idx], axis=(1)) # (units, time, images) --> (units, images)
     return Xw
 
 def landscape(dat, roi, rsp=RESP, random_state=RAND):
