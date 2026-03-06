@@ -2,7 +2,7 @@ import os
 
 # Root directory
 # $USER should match aws bucket. change manually if necessary
-ROOT = os.path.join('s3://visionlab-members/', os.getenv('USER'))
+ROOT = os.path.join('s3://visionlab-members/', os.getenv('VISLAB_USERNAME'))
 
 # Top level directory
 DATADIR = os.path.join(ROOT, 'datasets', 'triple-n', 'V1')

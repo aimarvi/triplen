@@ -26,6 +26,7 @@ dependencies = [
     "torch>=2.8.0",
     "torchvision>=0.23.0",
     "tqdm>=4.67.2",
+    "visionlab-utils",
     "xlrd>=2.0.2",
 ]
 
@@ -46,6 +47,7 @@ include = ['src/manifold_dynamics', 'README.md', 'pyproject.toml']
 [tool.uv.sources]
 gsn = { git = "https://github.com/cvnlab/GSN.git" }
 psn = { git = "https://github.com/jacob-prince/PSN.git", rev = "refactor-dec25" }
+visionlab-utils = { path = "../visionlab_utils", editable = true }
 
 [build-system]
 requires = ['hatchling']
