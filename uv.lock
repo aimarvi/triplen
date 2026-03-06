@@ -2434,7 +2434,7 @@ requires-dist = [
     { name = "torch", specifier = ">=2.8.0" },
     { name = "torchvision", specifier = ">=0.23.0" },
     { name = "tqdm", specifier = ">=4.67.2" },
-    { name = "visionlab-utils", editable = "../visionlab_utils" },
+    { name = "visionlab-utils", editable = "../visionlab-utils" },
     { name = "xlrd", specifier = ">=2.0.2" },
 ]
 
@@ -6063,7 +6063,7 @@ wheels = [
 [[package]]
 name = "visionlab-utils"
 version = "0.1.0"
-source = { editable = "../visionlab_utils" }
+source = { editable = "../visionlab-utils" }
 
 [[package]]
 name = "vtk"
