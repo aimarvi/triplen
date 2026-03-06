@@ -17,7 +17,7 @@ dependencies = [
     "pillow>=11.3.0",
     "psn",
     "pyarrow>=21.0.0",
-    "pyvista>=0.46.5",
+    "pyvista[jupyter]>=0.46.5",
     "s3fs>=0.4.2",
     "scikit-learn>=1.6.1",
     "scipy>=1.13.1",
