@@ -17,3 +17,6 @@ IMAGEDIR = os.path.join(DATADIR, 'NSD1000_LOC')
 
 # Where to save figures
 SAVEDIR = os.path.join(ROOT, 'manifold-dynamics')
+
+# NMT macaque template
+TEMPLATEDIR = os.path.join(ROOT, 'NMT_v2.0_sym') 
