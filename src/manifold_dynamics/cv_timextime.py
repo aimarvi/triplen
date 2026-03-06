@@ -100,7 +100,8 @@ def _responsive_mask(split_4d: np.ndarray, config: CvConfig) -> np.ndarray:
         X=split_4d,
         onset=config.onset_ms,
         baseline_win=config.baseline_ms,
-        stim_win=((50, 120), (120, 240)),
+        stim_win=[(50, 120)],
+        # stim_win=((50, 120), (120, 240)),
     )
     return np.any(pvals < config.alpha_responsive, axis=1)
 
