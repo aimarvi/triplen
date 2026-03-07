@@ -83,7 +83,7 @@ def main() -> None:
     rasters_by_uid: dict[str, np.ndarray] = {}
     for uid in roi_uids:
         raster_4d = nu.load_cached_session_raster(uid)
-        raster_4d = nu.bin_trials_to_20ms_psth(raster_4d, bin_size_ms=args.bin_size_ms)
+        raster_4d = nu.bin_to_psth(raster_4d, bin_size_ms=args.bin_size_ms)
         rasters_by_uid[uid] = raster_4d
         vprint(f"{uid}: raster shape after binning {raster_4d.shape}")
 
