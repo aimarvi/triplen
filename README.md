@@ -1,98 +1,122 @@
-# Triple-N Dataset (@aim)
+# Manifold Dynamics (Triple-N V1)
 
-Non-human Primate Neural Responses to Natural Scenes
+This repo analyzes macaque IT neural responses from the Triple-N dataset, with a focus on **time-time representational geometry** (how neural geometry changes over time).
 
-Ref: https://www.biorxiv.org/content/10.1101/2025.05.06.652408v1
+The practical pipeline is:
 
-@aim: this repo is a fork of the original, located at https://github.com/liyipeng-moon/Triple-N 
+`GoodUnit*.mat + Processed_ses*.mat + exclude_area.xls`  
+`-> roi-uid.csv`  
+`-> session ROI raster (units x time x images x repeats)`  
+`-> trial-averaged PSTH / tuning RDM`  
+`-> ED2 and cross-validated geometry analyses`
 
-## Notes to myself
- - The file 'Processed_ses29_240920_M3_3.mat' has inconsistent unit numbers
- - Sessions 58,59 do not have raster-level data
+## Data Format (What You Actually Use)
 
-## File Structure
-For each recording session, three file types are provided:
+## 1) `GoodUnit_*.mat` (raw spike responses)
+Key fields used in this repo:
+- `GoodUnitStrc.Raster`: per-unit spike raster over time and valid trials
+- `meta_data.trial_valid_idx`: image ID for each trial
+  - `0` = invalid trial (excluded)
+  - `1..1000` = NSD images
+  - `1001..1072` = localizer images
+- Time axis is typically `-50..400 ms` at `1 ms` resolution (`450` bins)
 
----
+## 2) `Processed_ses*.mat` (per-session summary metadata)
+Key field used in ROI extraction:
+- `pos`: unit position along probe/shank
 
-## 1. GoodUnit Files
-Contains processed spike information and some meta-data.
+This file is used with ROI depth limits (`y1`, `y2`) to keep only units in the selected ROI.
 
-**Example Filename**:  
-`GoodUnit_240629_JianJian_NSD1000_LOC_g2.mat`
+## 3) `exclude_area.xls` (manual ROI definitions)
+Used to build `roi-uid.csv`.
 
-### Key File Contents
-| Component | Description |
-|-----------|-------------|
-| `global_params.pre_onset` | Time (ms) prior to stimuli onset (here: 50) |
-| `global_params.post_onset` | Time (ms) after stimuli onset (here: 400) |
-| `global_params.PsthRange` | Time points  for raster and PSTH below <br> Here: -50:1:400 |
-| `meta_data` | Recording metadata and processed behavior |
-| `meta_data.trial_valid_idx` | Stimuli indices for each trial <br> - 0: failed trial <br>- 1-1000: NSD Shared 1000 <br> - 1001-1072: Localizer stimuli |
-| `GoodUnitStrc` | Organized sturcture for each units |
+## ROI and Naming Conventions
 
-### GoodUnitStrc Structure Key Field
-| Field | Format | Description |
-|-------|--------|-------------|
-| `Raster` | [trial_idx × time_point] | Spike raster matrix <br> typically 0 1, where 1 is one spike <br> could be 2 or lager for some MUA |
-| `response_matrix_img` | [image_idx × time_point] | PSTH matrix with a 20ms box bin |
-| `qm` | [1 × n_metric] | Quality metric from BombCell |
-| `spiketime_ms` | [1 × n_spikes] | Spike train time point relative to stimuli train |
-| `waveform` | [7 Chan × 61 Sample] | Spike waveform |
+`roi-uid.csv` is the core mapping table used throughout the analysis.
 
-note: `trial_idx` here correspond to all valid trials (i.e. `meta_data.trial_valid_idx(meta_data.trial_valid_idx~=0)`)
+Columns in `roi-uid.csv`:
+- `uid`
+- `y1`
+- `y2`
 
----
+`uid` format:
+- `SesIdx.RoiIndex.AREALABEL.Categoty`
+- Example: `18.19.Unknown.F`
 
-## 2. Processed Files
-Contains unit-wise processed information.
+Meaning:
+- `SesIdx`: session ID
+- `RoiIndex`: ROI index within session mapping
+- `AREALABEL`: area label
+- `Categoty`: category label (kept as spelled in source table)
 
-**Example Filename**:  
-`Processed_ses01_240629_M1_2.mat`
+Useful forms:
+- **ROI UID (single session)**: `11.04.MO1s1.O`
+- **ROI key (all sessions for one ROI)**: `04.MO1s1.O`
 
-### Key Variables
-| Variable | Format | Description |
-|----------|--------|-------------|
-| `B_SI`, `F_SI`, `O_SI` | [1 × unit_num] | d-prime for body, face, object categories from localizer |
-| `best_t_time` | [1 × unit_num] | Time window with highest reliability |
-| `mean_psth` | [unit_num × time_point] | Averaged PSTH across images |
-| `pos` | [1 × unit_num] | Spike position along the Electrode shank |
-| `reliability_basic/best` | [1 × unit_num] | Split-half reliability <br> - basic: calculated from fixed time window <br> - best: calculated from best time window |
-| `response_basic/best` | [unit_num × 1072] | Averaged firing rates  <br> - basic: calculated from fixed time window <br> - best: calculated from best time window |
-| `snr`, `snr_max` | [1 × unit_num] | Signal-to-noise ratios <br> - max: calculated by most preferred stimuli|
-| `UnitType` | [1 × unit_num] | Unit type from BombCell: <br>1: Single Unit<br>2: MUA<br>3-4: Non-somatic |
+## Session Organization
 
----
+Session pairing is resolved automatically by matching filenames:
+- `GoodUnit_<date>..._g<idx>.mat`
+- `Processed_ses<session>_<date>_..._<idx>.mat`
 
-### ROI Definition File: `exclude_area.xls`
-Contains manually defined Regions of Interest (ROIs) for each session.
+In `io_matlab_s3.py`, files are matched by `(date, idx)` and then sorted by `ses` number.
 
-- One row = one ROI
-- Single session may contain multiple ROIs (e.g., session 11 has object area at tip + unknown areas)
+## Main Data Shapes
 
-### File Columns
-| Column | Description | Example Values |
-|--------|-------------|----------------|
-| `SesIdx` | Session number | 11, 12, 13... |
-| `y1` | ROI start position (shank coordinate) | 1200 (μm) |
-| `y2` | ROI end position (shank coordinate) | 1800 (μm) |
-| `arealabel` | Area Label | See full list below, with number corresponding to subject idx |
-| `ROIIndex` | ROI identifier | Links to 3D coordinates in another file |
+After ROI extraction (`session_raster_extraction.py`):
+- `raster`: `(units, time, images, repeats)`
+- Typical dimensions:
+  - `time = 450`
+  - `images = 1072`
+  - `repeats = variable, NaN-padded to max repeats per image`
 
-### Area Label Key
-**Body Face Object**:
-- `MB`: Middle body (MSB)
-- `AB`: Anterior body (ASB)
-- `MF`: Middle face (ML)
-- `AF`: Anterior face (AL)
-- `MO`: Middle object (MLO)
- - `MO1s1` and `MO1s2` correspond 2 subregions of MO1
-- `AO`: Anterior object (ALO)
+Common downstream views:
+- Trial-averaged PSTH: `(units, time, images)`
+- Time-time tuning RDM: `(time_window, time_window)`
 
-**Other Areas**:
-- `LPP`: Lateral place patch
-- `PITP`: Posterior inferotemporal place patch
-- `CLC`: Central lateral color area
-- `AMC`: Anterior medial color area
+## Most Relevant `src/manifold_dynamics` Files
 
----
+- `paths.py`
+  - Central S3 path definitions (raw, processed, others, stimuli)
+
+- `io_matlab_s3.py`
+  - Lists/matches raw and processed files by session
+  - Loads MATLAB files from S3 (`v7.3` via `h5py`, `v5` via `scipy.io.loadmat`)
+
+- `unique_label.py`
+  - Builds `roi-uid.csv` from `exclude_area.xls`
+
+- `session_raster_extraction.py`
+  - Core conversion from session files to ROI raster tensor
+  - Applies ROI depth filter using `y1/y2`
+
+- `neural_utils.py`
+  - Raster loading, trial binning (e.g., 20 ms), responsive mask caching
+  - General neural utility functions
+
+- `spike_response_stats.py`
+  - Unit response significance test (`is_responsive`)
+
+- `tuning_utils.py`
+  - Core representational geometry utilities
+  - `tuning_rdm()` is the main time-time RDM function
+  - ED metrics (`ED1`, `ED2`)
+
+- `crossval.py`
+  - CLI for cross-validated time-time analysis from ROI UID or ROI key
+
+## Minimal Workflow
+
+1. Build/refresh ROI mapping:
+- Run `unique_label.py` to produce `roi-uid.csv`
+
+2. Extract ROI-session raster:
+- Use `session_raster_extraction.extract_session_raster(roi_uid)`
+
+3. Compute time-time geometry:
+- Use `tuning_utils.tuning_rdm(...)`
+- Compute ED with `tuning_utils.ED2(...)`
+
+4. Run CV analysis:
+- Use `crossval.py` with either a 4-part UID or 3-part ROI key
+
