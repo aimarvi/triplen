@@ -1,22 +1,36 @@
-import os
+from __future__ import annotations
 
-# Root directory
-# $USER should match aws bucket. change manually if necessary
-ROOT = os.path.join('s3://visionlab-members/', os.getenv('VISLAB_USERNAME'))
+from os import getenv
+from pathlib import Path, PurePosixPath
 
-# Top level directory
-DATADIR = os.path.join(ROOT, 'datasets', 'triple-n', 'V1')
 
-# Basic data subdirs
-PROCESSED = os.path.join(DATADIR, 'Processed')
-RAW = os.path.join(DATADIR, 'Raw', 'GoodUnitV2')
-OTHERS = os.path.join(DATADIR, 'others')
+def _join_path(base: str, *parts: str) -> str:
+    """Join local paths and cloud URIs with stable POSIX separators."""
+    if "://" in base:
+        protocol, path = base.split("://", 1)
+        joined = PurePosixPath(path.strip("/"))
+        for part in parts:
+            joined = joined / str(part).strip("/")
+        return f"{protocol}://{joined}"
+    return str(Path(base).joinpath(*parts))
 
-# Stimuli
-IMAGEDIR = os.path.join(DATADIR, 'NSD1000_LOC')
 
-# Where to save figures
-SAVEDIR = os.path.join(ROOT, 'manifold-dynamics')
+VISLAB_USERNAME = getenv("VISLAB_USERNAME")
+if not VISLAB_USERNAME:
+    raise EnvironmentError("VISLAB_USERNAME is not set.")
 
-# NMT macaque template
-TEMPLATEDIR = os.path.join(ROOT, 'datasets', 'NMT_v2.0_sym') 
+# Root directory (bucket namespace for this user)
+ROOT = _join_path("s3://visionlab-members", VISLAB_USERNAME)
+
+# Top level data directory
+DATADIR = _join_path(ROOT, "datasets", "triple-n", "V1")
+
+# Standard subdirectories
+PROCESSED = _join_path(DATADIR, "Processed")
+RAW = _join_path(DATADIR, "Raw", "GoodUnitV2")
+OTHERS = _join_path(DATADIR, "others")
+IMAGEDIR = _join_path(DATADIR, "NSD1000_LOC")
+
+# Figure and template directories
+SAVEDIR = _join_path(ROOT, "manifold-dynamics")
+TEMPLATEDIR = _join_path(ROOT, "datasets", "NMT_v2.0_sym")
