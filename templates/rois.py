@@ -12,7 +12,7 @@ import scipy.sparse.csgraph as csgraph
 # =========================
 # paths (EDIT THESE)
 # =========================
-DIR = '/Users/aim/Desktop/HVRD/workspace/dynamics/datasets/NMT_v2.0_sym'
+DIR = '~/Desktop/HVRD/workspace/datasets/NMT_v2.0_sym'
 SURF_GII = os.path.join(DIR, 'NMT_v2.0_sym_surfaces', 'lh.mid_surface.inf_300.rsl.gii')
 CHARM_NII = os.path.join(DIR, 'NMT_v2.0_sym', 'CHARM_in_NMT_v2.0_sym.nii.gz')
 CHARM_TABLE = os.path.join(DIR, 'tables_CHARM', 'CHARM_key_table.csv')
@@ -184,7 +184,7 @@ mesh.point_data['roi_family'] = labels
 # =========================
 pv.global_theme.smooth_shading = False
 
-pl = pv.Plotter()
+pl = pv.Plotter(off_screen=True)
 pl.add_mesh(
     mesh,
     scalars='roi_family',
@@ -192,8 +192,14 @@ pl.add_mesh(
     clim=[0, len(cmap) - 1],
     categories=True,
     interpolate_before_map=False,
+    show_scalar_bar=False, # disable colorbar
 )
+pl.set_background('white')
 pl.reset_camera()
 
 print('\nStarting PyVista server...')
-pl.show()  # <-- prints localhost URL
+# look from below and slightly from the right
+pl.view_vector((-0.6, 0, -1), viewup=(0, 1, 0))
+pl.show(auto_close=False)
+pl.screenshot('~/Downloads/macaque_brain.png', transparent_background=True)
+pl.close()
