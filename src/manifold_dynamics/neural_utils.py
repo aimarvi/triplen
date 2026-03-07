@@ -1,11 +1,88 @@
-import re, os, h5py, fsspec, tempfile
+from pathlib import Path
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-from scipy import io
+from scipy.ndimage import uniform_filter1d
 
 import manifold_dynamics.paths as pth
-fs = fsspec.filesystem("s3")
+import manifold_dynamics.spike_response_stats as srs
+import visionlab_utils.storage as vst
+
+
+def load_cached_session_raster(uid):
+    """
+    Load precomputed session raster from storage cache.
+
+    Args:
+        uid (str): Session ROI UID (e.g., ``18.19.Unknown.F``).
+
+    Returns:
+        np.ndarray: Raster tensor of shape (units, time, images, repeats).
+    """
+    npy_path = f"{pth.PROCESSED}/single-session-raster/{uid}.npy"
+    f = vst.fetch(npy_path)
+    return np.load(f)
+
+
+def bin_to_psth(raster_4d, bin_size_ms=20):
+    """
+    Convert raw raster to a binned PSTH per trial.
+
+    This preserves the time axis length, so output shape remains:
+      (units, 450, 1072, repeats)
+
+    Args:
+        raster_4d (np.ndarray): Input raster of shape (units, time, images, repeats).
+        bin_size_ms (int): Temporal bin size in ms. Assumes 1 ms native bins.
+    """
+    if raster_4d.ndim != 4:
+        raise ValueError(f"Expected raster shape (units,time,images,repeats), got {raster_4d.shape}")
+    if int(bin_size_ms) < 1:
+        raise ValueError(f"bin_size_ms must be >= 1, got {bin_size_ms}")
+    return uniform_filter1d(
+        raster_4d.astype(np.float32, copy=False),
+        size=int(bin_size_ms),
+        axis=1,
+        mode="nearest",
+    )
+
+
+def load_or_compute_responsive_mask(uid, raster_4d, alpha=0.05):
+    """
+    Compute/load per-unit p-values on all repeats and return a responsive-unit mask.
+
+    Cached file path:
+      <cache_dir>/pvalues/full_reps/<uid>.npy
+    """
+    pval_dir = Path(vst.get_cache_dir("pvalues/full_reps"))
+    pval_path = pval_dir / f"{uid}.npy"
+
+    if pval_path.exists():
+        pvals = np.load(pval_path)
+    else:
+        pvals = srs.is_responsive(X=raster_4d, roi_uid=uid, test_type="paired").squeeze()
+        pval_path.parent.mkdir(parents=True, exist_ok=True)
+        np.save(pval_path, pvals)
+
+    pvals = np.asarray(pvals).squeeze()
+    if pvals.ndim != 1 or pvals.shape[0] != raster_4d.shape[0]:
+        pvals = srs.is_responsive(X=raster_4d, roi_uid=uid, test_type="paired").squeeze()
+        np.save(pval_path, pvals)
+
+    return np.isfinite(pvals) & (pvals < alpha)
+
+
+#  Original name `raster_to_20ms_psth_trials`.
+def raster_to_20ms_psth_trials(raster_4d):
+    """Backward-compatible wrapper for `bin_trials_to_20ms_psth`."""
+    return bin_to_psth(raster_4d, bin_size_ms=20)
+
+
+#  Original name `get_cached_fullrep_responsive_mask`.
+def get_cached_fullrep_responsive_mask(uid, raster_4d, alpha=0.05):
+    """Backward-compatible wrapper for `load_or_compute_responsive_mask`."""
+    return load_or_compute_responsive_mask(uid, raster_4d, alpha=alpha)
 
 def compute_noise_ceiling(data_in):
     """
@@ -45,24 +122,17 @@ def compute_noise_ceiling(data_in):
 
     return noiseceiling, ncsnr, signalvar, noisevar
 
-def derag_fr(data_in, period='early'):
+def stack_ragged_firing_rates(data_in, period="early"):
     """
-    Return the per-trial firing rate data for all units in a specific time period
-    
-    Arguments:
-    ---------
-    data_in : pd.DataFrame
-    period : str 
-        'pre' --> -25 to 30 ms
-        'early' --> 50 to 120 ms
-        'late' --> 120 to 240 ms
-                
+    Convert ragged per-image trial responses into a dense padded tensor.
+
+    Args:
+        data_in (pd.DataFrame): Table with a column containing ragged trial arrays.
+        period (str): Column name (`pre`, `early`, `late`, etc.).
+
     Returns:
-    --------
-    stacked : np.ndarray (num_units, images, trials)
-        nan padded
+        np.ndarray: Array with shape (units, images, max_trials), padded with NaN.
     """
-    # the array is still ragged
     in_period = list(data_in[period])
     num_units = len(in_period)
     num_images = len(in_period[0])
@@ -73,7 +143,6 @@ def derag_fr(data_in, period='early'):
         for unit in in_period
         for arr in unit)
 
-    # pad with nan
     stacked = np.full((num_units, num_images, max_reps), np.nan, dtype=float)
     for unit_i, unit in enumerate(in_period):
         for img in range(num_images):
@@ -83,16 +152,25 @@ def derag_fr(data_in, period='early'):
                 stacked[unit_i, img, :reps_here] = arr
                 
     return stacked
-    
-def get_unit_timecourse(row, start=None, end=None):
+
+
+def extract_unit_timecourse(row, start=None, end=None):
     """
-    Return the unit's avg PSTH within the analysis window.
-    If avg_psth is missing, derive it by averaging img_psth across images.
-    Ensures shape (T,) where T=end-start.
+    Return a unit-level 1D timecourse from row metadata.
+
+    Uses `avg_psth` when available; otherwise derives it from `img_psth`.
+
+    Args:
+        row (pd.Series): Row with `avg_psth` and/or `img_psth`.
+        start (int | None): Inclusive time index start.
+        end (int | None): Exclusive time index end.
+
+    Returns:
+        np.ndarray: 1D timecourse slice of shape (T,).
     """
-    avg = row['avg_psth']
+    avg = row["avg_psth"]
     if avg is None or (isinstance(avg, float) and np.isnan(avg)):
-        A = np.asarray(row['img_psth'])  # (time, images)
+        A = np.asarray(row["img_psth"])  # (time, images)
         if A.ndim != 2:
             raise ValueError("img_psth must be 2D (time x images)")
         avg = A.mean(axis=1)
@@ -107,29 +185,52 @@ def get_unit_timecourse(row, start=None, end=None):
         raise ValueError(f"avg_psth length {len(avg)} < required end index {end}")
     return avg[start:end]  # (T,)
 
-def load_image(idx, ax=None):
+
+def plot_stimulus_image(idx, ax=None):
     """
-    Given an index, plots the corresponding image in the NSD1000_LOC image set
-    
-    args:
-        idx (int): image idx from 0 - 1071
-        ax (Axis object): axis to plot image on
+    Plot the NSD1000_LOC image corresponding to the requested index.
+
+    Args:
+        idx (int): Image index in [0, 1071].
+        ax (matplotlib.axes.Axes | None): Axis to draw on.
+
+    Returns:
+        matplotlib.axes.Axes: Axis containing the rendered image.
     """
     if ax is None:
-        fig, ax = plt.subplots(1,1)
+        _, ax = plt.subplots(1, 1)
 
     if idx < 1000:
-        fname = f"{idx+1:04d}.bmp"
+        fname = f"{idx + 1:04d}.bmp"
     else:
-        fname = f"MFOB{idx-999:03d}.bmp"  # 1000 --> MFOB001, 1071 --> MFOB072
-    fpath = os.path.join(pth.IMAGEDIR, fname)
-    if os.path.exists(fpath):
+        fname = f"MFOB{idx - 999:03d}.bmp"  # 1000 -> MFOB001, 1071 -> MFOB072
+
+    fpath = Path(pth.IMAGEDIR) / fname
+    if fpath.exists():
         img = mpimg.imread(fpath)
-        ax.imshow(img, cmap='gray')
-        ax.set_title('')
+        ax.imshow(img, cmap="gray")
+        ax.set_title("")
         ax.axis("off")
     else:
         ax.text(0.5, 0.5, "missing", ha="center", va="center")
-        ax.axis("off") 
+        ax.axis("off")
 
     return ax
+
+
+#  Original name `derag_fr`.
+def derag_fr(data_in, period="early"):
+    """Backward-compatible wrapper for `stack_ragged_firing_rates`."""
+    return stack_ragged_firing_rates(data_in, period=period)
+
+
+#  Original name `get_unit_timecourse`.
+def get_unit_timecourse(row, start=None, end=None):
+    """Backward-compatible wrapper for `extract_unit_timecourse`."""
+    return extract_unit_timecourse(row, start=start, end=end)
+
+
+#  Original name `load_image`.
+def load_image(idx, ax=None):
+    """Backward-compatible wrapper for `plot_stimulus_image`."""
+    return plot_stimulus_image(idx, ax=ax)
