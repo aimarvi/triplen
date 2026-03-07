@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from scipy.ndimage import uniform_filter1d
@@ -9,6 +10,26 @@ import manifold_dynamics.paths as pth
 import manifold_dynamics.spike_response_stats as srs
 import visionlab_utils.storage as vst
 
+def roi_uids_for_label(roi_label: str) -> list[str]:
+    """
+    Resolve all session UIDs for an ROI label.
+
+    UID format in roi-uid.csv: SesIdx.RoiIndex.AREALABEL.Categoty
+    ROI label format used here: AREALABEL_RoiIndex_Categoty
+    """
+    uid_csv = os.path.join(pth.OTHERS, "roi-uid.csv")
+    f = vst.fetch(uid_csv)
+    df_uid = pd.read_csv(f)
+
+    uids = []
+    for uid in df_uid["uid"].astype(str):
+        parts = uid.split(".")
+        if len(parts) != 4:
+            continue
+        label = f"{parts[2]}_{int(parts[1])}_{parts[3]}"
+        if label == roi_label:
+            uids.append(uid)
+    return uids
 
 def load_cached_session_raster(uid):
     """
@@ -48,7 +69,7 @@ def bin_to_psth(raster_4d, bin_size_ms=20):
     )
 
 
-def load_or_compute_responsive_mask(uid, raster_4d, alpha=0.05):
+def responsive_mask(uid, raster_4d, alpha=0.05):
     """
     Compute/load per-unit p-values on all repeats and return a responsive-unit mask.
 
@@ -71,18 +92,6 @@ def load_or_compute_responsive_mask(uid, raster_4d, alpha=0.05):
         np.save(pval_path, pvals)
 
     return np.isfinite(pvals) & (pvals < alpha)
-
-
-#  Original name `raster_to_20ms_psth_trials`.
-def raster_to_20ms_psth_trials(raster_4d):
-    """Backward-compatible wrapper for `bin_trials_to_20ms_psth`."""
-    return bin_to_psth(raster_4d, bin_size_ms=20)
-
-
-#  Original name `get_cached_fullrep_responsive_mask`.
-def get_cached_fullrep_responsive_mask(uid, raster_4d, alpha=0.05):
-    """Backward-compatible wrapper for `load_or_compute_responsive_mask`."""
-    return load_or_compute_responsive_mask(uid, raster_4d, alpha=alpha)
 
 def compute_noise_ceiling(data_in):
     """
