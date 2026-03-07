@@ -1,143 +1,162 @@
-import pandas as pd
-import numpy as np
-from scipy.spatial.distance import pdist, cdist, squareform
-from scipy.stats import pearsonr, spearmanr, entropy, rankdata
-from scipy.ndimage import gaussian_filter1d
+from __future__ import annotations
 
+import numpy as np
+import pandas as pd
+from scipy.spatial.distance import pdist, squareform
+from scipy.stats import rankdata
 from tqdm import tqdm
 
-# some CONFIG parameters
+
+# -----------------------------------------------------------------------------
+# Global Analysis Defaults
+# -----------------------------------------------------------------------------
 RAND = 0
-RESP = (50,220)
-BASE = (-50,0)
 ONSET = 50
-RESP = slice(ONSET + RESP[0], ONSET + RESP[1])
-BASE = slice(ONSET + BASE[0], ONSET + BASE[1])
+RESP = slice(ONSET + 50, ONSET + 220)
+BASE = slice(ONSET - 50, ONSET + 0)
 
-def response_array(dat, roi):
-    sig = dat[dat['p_value'] < 0.05]
-    df = sig[sig['roi'] == roi]
+
+# -----------------------------------------------------------------------------
+# Data Selection and Preparation
+# -----------------------------------------------------------------------------
+
+def select_significant_roi_rows(dat: pd.DataFrame, roi: str, pval_threshold: float = 0.05) -> pd.DataFrame:
+    """
+    Return rows for one ROI after p-value filtering.
+
+    Args:
+        dat: Input unit-level table.
+        roi: ROI label (e.g., ``MF1_7_F``).
+        pval_threshold: Significance threshold for ``p_value``.
+
+    Returns:
+        Filtered DataFrame containing only significant units for the ROI.
+    """
+    sig = dat[dat["p_value"] < pval_threshold]
+    df = sig[sig["roi"] == roi]
     if len(df) == 0:
-        raise ValueError(f"No data for ROI {ROI}")
-    X = np.stack(df['img_psth'].to_numpy())          # (units, time, images)
+        raise ValueError(f"No data for ROI {roi}")
+    return df
 
-    return X
 
-def geo_rdm(
-    dat,
-    roi,
-    mode='top',
-    step=5,
-    k_max=200,
-    metric='correlation',
-    random_state=RAND,
-    tstart=100,
-    tend=350,
-):
-    '''
-    calculates a series of Time x Time RDMs:
-      (1) for a single time point
-        (a) calculate a K x K image RDM across all units
-        (b) take upper diagonal (kRDV) and store in a list
-      (2) calculate uber RDM where each entry is =distance(kRDV, kRDV')
-      (3) final RDM should be Time x Time
-      (4) repeat for different manifold scales (K)
-    
-    args:
-        dat (DataFrame): data
-        roi (str): ROI name (eg. 'MF1_7_F')
-        mode (str): ['top', 'shuff']
-            top: orders images by response magnitude
-            shuff: randomly selects images of the same scale
-        step (int): manifold scale step size between two Time x Time RDMs
-        k_max (int): maximum manifold scale in final Time x Time RDM
-        metric (str): distance metric for Time x Time RDM
-        random_state (int): random seed
+def trial_averaged_psth(dat: pd.DataFrame, roi: str, pval_threshold: float = 0.05) -> np.ndarray:
+    """
+    Return trial-averaged PSTH tensor for one ROI.
 
-    returns:
-        sizes: list(manifold scales)
-        rdvs: list(all Time x Time RDMs)
-    '''
+    Returns:
+        Array with shape ``(units, time, images)``.
+    """
+    df = select_significant_roi_rows(dat=dat, roi=roi, pval_threshold=pval_threshold)
+    return np.stack(df["img_psth"].to_numpy())
+
+
+# NOTE: Original name kept for compatibility.
+def response_array(dat, roi):
+    """Backward-compatible wrapper for ``trial_averaged_psth``."""
+    return trial_averaged_psth(dat=dat, roi=roi, pval_threshold=0.05)
+
+
+# -----------------------------------------------------------------------------
+# Image Ordering and Selection
+# -----------------------------------------------------------------------------
+
+def rank_images_by_response(X: np.ndarray, response_window=RESP, baseline_window=BASE) -> np.ndarray:
+    """
+    Rank images by baseline-subtracted response magnitude (descending).
+
+    Args:
+        X: Tensor with shape ``(units, time, images)``.
+        response_window: Time slice used for response magnitude.
+        baseline_window: Time slice used for baseline subtraction.
+
+    Returns:
+        Image index array sorted by descending score.
+    """
+    scores = np.nanmean(X[:, response_window, :], axis=(0, 1)) - np.nanmean(
+        X[:, baseline_window, :], axis=(0, 1)
+    )
+    return np.argsort(scores)[::-1]
+
+
+def resolve_image_indices(X: np.ndarray, images="all", random_state: int = RAND):
+    """
+    Resolve image selection spec into concrete indices/slices.
+
+    Supported `images` values:
+      - ``'all'``
+      - ``'nsd'``
+      - ``'localizer'``
+      - ``'shuff_nsd'``
+      - slice
+      - tuple(start, end) -> slice(start, end)
+      - explicit 1D bool/int array
+    """
     rng = np.random.default_rng(random_state)
 
-    # all image responses, thresholded by p-val
-    X = response_array(dat, roi)
+    if isinstance(images, str):
+        if images == "all":
+            return slice(None)
+        if images == "nsd":
+            return slice(0, min(1000, X.shape[2]))
+        if images == "localizer":
+            return slice(1000, X.shape[2])
+        if images == "shuff_nsd":
+            n = min(1000, X.shape[2])
+            return rng.permutation(np.arange(n))
+        raise ValueError(
+            f"unknown images='{images}' (use 'all', 'nsd', 'localizer', or indices)"
+        )
 
-    # sort by response magnitude (baseline subtracted)
-    scores = np.nanmean(X[:, RESP, :], axis=(0,1)) - np.nanmean(X[:, BASE, :], axis=(0,1))
-    order = np.argsort(scores)[::-1] if mode == 'top' else rng.permutation(scores.size)
+    if isinstance(images, slice):
+        return images
 
-    # ================= choose the image-set bins to calculate RDMs ========
-    sizes = [k for k in range(step, min(k_max, X.shape[2]) + 1, step)]
-    # =================== ramping step size ================================ 
-    # sizes = [k for k in range(1, 2*step)] + [k for k in range(2*step, min(k_max, X.shape[2])+1, step)]
-    
-    rdvs = []
-    for k in tqdm(sizes):
-        idx = order[:k]
-        R, _ = tuning_rdm(X=X, indices=idx, tstart=tstart, tend=tend, metric=metric)
-        rdvs.append(R)
-    return sizes, rdvs
+    if (
+        isinstance(images, tuple)
+        and len(images) == 2
+        and all(isinstance(x, (int, np.integer, type(None))) for x in images)
+    ):
+        return slice(images[0], images[1])
 
-def static_rdm(dat, roi, mode='top', scale=30, tstart=100, tend=350, metric='correlation', random_state=RAND):
-    '''
-    calculates a single Time x Time RDM, given:
-      (1) a scale (top k images)
-      (2) a time window (0-400 msec; 50 = image onset)
+    idx = np.asarray(images)
+    if idx.ndim != 1:
+        raise ValueError("images indices must be 1d")
 
-    args:
-        dat (DataFrame): data
-        roi (str): ROI name (eg. 'MF1_7_F')
-        mode (str): ['top', 'shuff']
-            top: orders images by response magnitude
-            shuff: randomly selects images of the same scale
-        scale (int): manifold scale used to calculate Time x Time RDMs
-        tstart (int): start of time window
-        tend (int): end of time window
-        metric (str): distance metric for Time x Time RDM
-        random_state (int): random seed
+    if idx.dtype == bool:
+        if idx.size != X.shape[2]:
+            raise ValueError(f"boolean mask length {idx.size} != n_images {X.shape[2]}")
+        return idx
 
-    returns:
-        R: array(Time x Time RDM) (square)
-        Xrdv: vectorized form of R (pre rank transformation) 
-    '''
-    rng = np.random.default_rng(random_state)
+    idx = idx.astype(int)
+    if (idx < 0).any() or (idx >= X.shape[2]).any():
+        raise ValueError("image indices out of bounds")
+    return idx
 
-    # all image responses, thresholded by p-val
-    X = response_array(dat, roi)
 
-    # score images (using global RESP/BASE you already defined)
-    scores = np.nanmean(X[:, RESP, :], axis=(0, 1)) - np.nanmean(X[:, BASE, :], axis=(0, 1))
-    order = np.argsort(scores)[::-1] if mode == 'top' else rng.permutation(scores.size)
+# -----------------------------------------------------------------------------
+# Core Time-Time Tuning RDM
+# -----------------------------------------------------------------------------
 
-    # pick image subset
-    idx = order[:scale]
+def tuning_rdm(X, indices, tstart=100, tend=350, metric="correlation"):
+    """
+    Build a time-time tuning RDM from trial-averaged unit responses.
 
-    # only look at localizer images
-    if scale == -1:
-        idx = slice(1000, X.shape[2])
+    Canonical pipeline:
+      1. Select image subset and time window.
+      2. Compute image RDV at each timepoint.
+      3. Rank-transform each timepoint RDV.
+      4. Compute pairwise distance between timepoint RDVs.
 
-    return tuning_rdm(X=X, indices=idx, tstart=tstart, tend=tend, metric=metric)
+    Args:
+        X: Response tensor ``(units, time, images)``.
+        indices: Image indices/slice/mask.
+        tstart: Time start index (inclusive).
+        tend: Time end index (exclusive).
+        metric: Distance metric for time-time RDM.
 
-def tuning_rdm(X, indices, tstart=100, tend=350, metric='correlation'):
-    '''
-    Build a time x time tuning RDM from unit responses.
-
-    This is the canonical implementation for time-time analysis and is shared by:
-      - `specific_static_rdm`
-      - cross-validated time-time code (`cv_timextime`)
-
-    args:
-        X (array): response tensor (units, time, images)
-        indices (slice | array-like): image indices to include
-        tstart (int): start index of time window
-        tend (int): end index of time window (exclusive)
-        metric (str): distance metric for time-time RDM
-
-    returns:
-        R (array): Time x Time RDM (square)
-        Xrdv (array): per-time image-pair RDV matrix (time, n_pairs)
-    '''
+    Returns:
+        R: Time-time RDM (square).
+        Xrdv: Per-time image-pair RDV matrix ``(time, n_pairs)``.
+    """
     X = np.asarray(X)
     if X.ndim != 3:
         raise ValueError(f"Expected X with shape (units,time,images), got {X.shape}")
@@ -146,215 +165,194 @@ def tuning_rdm(X, indices, tstart=100, tend=350, metric='correlation'):
     if Ximg.shape[2] < 2:
         raise ValueError("Need at least 2 images to form an image RDM.")
 
-    Xrdv = np.array([
-        pdist(Ximg[:, t, :].T, metric='correlation')
-        for t in range(Ximg.shape[1])
-    ])
-
+    Xrdv = np.array([pdist(Ximg[:, t, :].T, metric="correlation") for t in range(Ximg.shape[1])])
     Xrank = np.apply_along_axis(rankdata, 1, Xrdv)
     R = squareform(pdist(Xrank, metric=metric))
     return R, Xrdv
 
-def specific_static_rdm(dat, roi, indices, tstart=100, tend=350, metric='correlation', random_state=RAND):
-    '''
-    calculates a single Time x Time RDM, given:
-      (1) a set number of images
-      (2) a time window (0-400 msec; 50 = image onset)
 
-    args:
-        dat (DataFrame): data
-        roi (str): ROI name (eg. 'MF1_7_F')
-        mode (str): ['top', 'shuff']
-            top: orders images by response magnitude
-            shuff: randomly selects images of the same scale
-        indice (Slice): image indices over which to calculate tuning RDM
-        tstart (int): start of time window
-        tend (int): end of time window
-        metric (str): distance metric for Time x Time RDM
-        random_state (int): random seed
+# -----------------------------------------------------------------------------
+# Time-Time Analysis Wrappers (Built on tuning_rdm)
+# -----------------------------------------------------------------------------
 
-    returns:
-        R: array(Time x Time RDM) (square)
-        Xrdv: vectorized form of R (pre rank transformation) 
-    '''
-    # all image responses, thresholded by p-val
-    X = response_array(dat, roi)
-    return tuning_rdm(X=X, indices=indices, tstart=tstart, tend=tend, metric=metric)
-    
+def geo_rdm(
+    dat,
+    roi,
+    mode="top",
+    step=5,
+    k_max=200,
+    metric="correlation",
+    random_state=RAND,
+    tstart=100,
+    tend=350,
+):
+    """
+    Compute a sequence of time-time RDMs across manifold scales.
 
-def time_avg_rdm(dat, roi, window=RESP, images='all', metric='correlation', random_state=RAND):
-    '''
-    image rdm within a response window.
-
-    images can be:
-      - str: 'all' | 'nsd' | 'localizer'
-      - array-like: explicit image indices (0-based)
-      - slice: explicit slice
-      - tuple: (start, end) interpreted as python slice [start:end]
-    '''
+    Returns:
+        sizes: list of manifold scales.
+        rdms: list of time-time RDMs.
+    """
     rng = np.random.default_rng(random_state)
+    X = trial_averaged_psth(dat, roi)
 
-    # all image responses, thresholded by p-val
-    X = response_array(dat, roi)
+    order = rank_images_by_response(X) if mode == "top" else rng.permutation(X.shape[2])
+    sizes = [k for k in range(step, min(k_max, X.shape[2]) + 1, step)]
 
-    # resolve which images to use
-    if isinstance(images, str):
-        if images == 'all':
-            idx = slice(None)
-        elif images == 'nsd':
-            idx = slice(0, min(1000, X.shape[2]))
-        elif images == 'localizer':
-            idx = slice(1000, X.shape[2])
-        elif images == 'shuff_nsd':
-            # example: same size as nsd but shuffled (because people always ask)
-            n = min(1000, X.shape[2])
-            idx = rng.permutation(np.arange(n))
-        else:
-            raise ValueError(f"unknown images='{images}' (use 'all', 'nsd', 'localizer', or indices)")
-    elif isinstance(images, slice):
-        idx = images
-    elif isinstance(images, tuple) and len(images) == 2 and all(isinstance(x, (int, np.integer, type(None))) for x in images):
-        idx = slice(images[0], images[1])
-    else:
-        idx = np.asarray(images)
-        if idx.ndim != 1:
-            raise ValueError('images indices must be 1d')
-        # allow boolean mask or integer indices
-        if idx.dtype == bool:
-            if idx.size != X.shape[2]:
-                raise ValueError(f'boolean mask length {idx.size} != n_images {X.shape[2]}')
-        else:
-            idx = idx.astype(int)
-            if (idx < 0).any() or (idx >= X.shape[2]).any():
-                raise ValueError('image indices out of bounds')
+    rdms = []
+    for k in tqdm(sizes):
+        idx = order[:k]
+        R, _ = tuning_rdm(X=X, indices=idx, tstart=tstart, tend=tend, metric=metric)
+        rdms.append(R)
 
-    # average unit responses over time window
+    return sizes, rdms
+
+
+def static_rdm(
+    dat,
+    roi,
+    mode="top",
+    scale=30,
+    tstart=100,
+    tend=350,
+    metric="correlation",
+    random_state=RAND,
+):
+    """
+    Compute one time-time RDM at a single manifold scale.
+
+    Special case:
+      - ``scale == -1`` uses localizer image set ``[1000:]``.
+    """
+    rng = np.random.default_rng(random_state)
+    X = trial_averaged_psth(dat, roi)
+
+    order = rank_images_by_response(X) if mode == "top" else rng.permutation(X.shape[2])
+    idx = order[:scale]
+    if scale == -1:
+        idx = slice(1000, X.shape[2])
+
+    return tuning_rdm(X=X, indices=idx, tstart=tstart, tend=tend, metric=metric)
+
+
+def specific_static_rdm(
+    dat,
+    roi,
+    indices,
+    tstart=100,
+    tend=350,
+    metric="correlation",
+    random_state=RAND,
+):
+    """
+    Compute one time-time RDM for an explicitly provided image index set.
+    """
+    _ = random_state  # kept for API compatibility
+    X = trial_averaged_psth(dat, roi)
+    return tuning_rdm(X=X, indices=indices, tstart=tstart, tend=tend, metric=metric)
+
+
+# -----------------------------------------------------------------------------
+# Time-Averaged and Unit-Response Views
+# -----------------------------------------------------------------------------
+
+def time_avg_rdm(dat, roi, window=RESP, images="all", metric="correlation", random_state=RAND):
+    """
+    Compute image-image RDM after averaging unit responses across a time window.
+
+    Note:
+        This keeps existing indexing behavior (including tuple window behavior)
+        for compatibility with current analyses.
+    """
+    X = trial_averaged_psth(dat, roi)
+    idx = resolve_image_indices(X=X, images=images, random_state=random_state)
+
     Xw = np.nanmean(X[:, window, idx], axis=1)  # (units, images_sel)
     Xrdv = pdist(Xw.T, metric=metric)
     R = squareform(Xrdv)
     return R, Xrdv
 
-def unit_responses(dat, roi, window=RESP, images='all', random_state=RAND):
-    '''
-    return unit responses during time window to a set of images
 
-    Args: 
-        dat (DataFrame): data
-        roi (str): ROI name (eg. 'MF1_7_F')
-        window (Slice): time window (msec)
-        images
-            (str): one of ('all', 'nsd', 'localizer', 'shuff_nsd')
-            OR
-            (np.array): image indices (0-1071)
-        random_state (int): random state
-        
-    '''
-    rng = np.random.default_rng(random_state)
+def unit_responses(dat, roi, window=RESP, images="all", random_state=RAND):
+    """
+    Return unit responses during a given time window for a selected image set.
 
-    # all image responses, thresholded by p-val
-    X = response_array(dat, roi)
+    Returns:
+        Array with shape ``(units, images_selected)``.
+    """
+    X = trial_averaged_psth(dat, roi)
+    idx = resolve_image_indices(X=X, images=images, random_state=random_state)
 
-    # resolve which images to use
-    if isinstance(images, str):
-        if images == 'all':
-            idx = slice(None)
-        elif images == 'nsd':
-            idx = slice(0, min(1000, X.shape[2]))
-        elif images == 'localizer':
-            idx = slice(1000, X.shape[2])
-        elif images == 'shuff_nsd':
-            # example: same size as nsd but shuffled (because people always ask)
-            n = min(1000, X.shape[2])
-            idx = rng.permutation(np.arange(n))
-        else:
-            raise ValueError(f"unknown images='{images}' (use 'all', 'nsd', 'localizer', or indices)")
-    elif isinstance(images, slice):
-        idx = images
-    elif isinstance(images, tuple) and len(images) == 2 and all(isinstance(x, (int, np.integer, type(None))) for x in images):
-        idx = slice(images[0], images[1])
-    else:
-        idx = np.asarray(images)
-        if idx.ndim != 1:
-            raise ValueError('images indices must be 1d')
-        # allow boolean mask or integer indices
-        if idx.dtype == bool:
-            if idx.size != X.shape[2]:
-                raise ValueError(f'boolean mask length {idx.size} != n_images {X.shape[2]}')
-        else:
-            idx = idx.astype(int)
-            if (idx < 0).any() or (idx >= X.shape[2]).any():
-                raise ValueError('image indices out of bounds')
-
-    # average unit responses over time window. should be baseline corrected?
-    Xw = np.nanmean(X[:, window, idx], axis=1) # - np.nanmean(X[:, BASE, idx], axis=(1)) # (units, time, images) --> (units, images)
+    # Keep original behavior: average over the selected time window only.
+    Xw = np.nanmean(X[:, window, idx], axis=1)
     return Xw
 
-def landscape(dat, roi, rsp=RESP, random_state=RAND):
-    '''
-    normalized (baseline subtracted) response to each image within a given time window
-    uses global RESP variable by default
 
-    args:
-        dat (DataFrame): data
-        roi (str): ROI name (eg. 'MF1_7_F')
-        rsp (tuple): response window (default: RESP)
-        random_state (int): random seed
+def landscape(dat, roi, response_window=RESP):
+    """
+    Compute baseline-subtracted response score for each image.
 
-    returns:
-        scores: scores for each image
-    '''
-    rng = np.random.default_rng(random_state)
+    Returns:
+        1D score vector of length ``n_images``.
+    """
+    X = trial_averaged_psth(dat, roi)
+    return np.nanmean(X[:, response_window, :], axis=(0, 1)) - np.nanmean(X[:, BASE, :], axis=(0, 1))
 
-    # all image responses, thresholded by p-val
-    X = response_array(dat, roi)
-
-    # score images (using global RESP/BASE you already defined)
-    scores = np.nanmean(X[:, rsp, :], axis=(0, 1)) - np.nanmean(X[:, BASE, :], axis=(0, 1))
-
-    return scores
+# -----------------------------------------------------------------------------
+# Helpers
+# -----------------------------------------------------------------------------
 
 def rdv(X):
+    """Return upper-triangle entries (k=1) from a square matrix."""
     ind = np.triu_indices_from(X, k=1)
-    return(X[ind])
+    return X[ind]
+
 
 def l2(X):
-    return np.sqrt(np.sum((X)**2))
+    """Return L2 norm of a vector-like input."""
+    return np.sqrt(np.sum(X ** 2))
+
+# -----------------------------------------------------------------------------
+# Effective Dimensionality & Entropy Metrics
+# -----------------------------------------------------------------------------
 
 def ED1(R):
     """
-    Standard calculation of effective dimensionality
+    Standard effective dimensionality from similarity-like matrices.
     """
-    S = -0.5 * R**2
+    S = -0.5 * R ** 2
     lam = np.linalg.eigvalsh(S)
     lam = np.clip(lam, 0, None)
-    return (lam.sum()**2) / (lam**2).sum()
+    return (lam.sum() ** 2) / (lam ** 2).sum()
 
 def ED2(R):
     """
-    Alternate form of effective dimensionality 
-    Use when R is a matrix of distance values (eg. cosine distance, pearson r, spearman rho, etc)
+    Effective dimensionality from distance matrices.
+
+    Includes finite-entry filtering before eigendecomposition.
     """
     R = np.asarray(R, dtype=float)
     if R.ndim != 2 or R.shape[0] != R.shape[1]:
         raise ValueError(f"ED2 expects a square 2D matrix, got shape {R.shape}")
 
-    # Filter to rows/cols that are fully finite so eigendecomposition is stable.
     finite_mask = np.isfinite(R).all(axis=0) & np.isfinite(R).all(axis=1)
     R = R[np.ix_(finite_mask, finite_mask)]
     if R.shape[0] < 2:
         return np.nan
 
     n = R.shape[0]
-    J = np.eye(n) - np.ones((n, n))/n
-    B = -0.5 * J @ (R**2) @ J
+    J = np.eye(n) - np.ones((n, n)) / n
+    B = -0.5 * J @ (R ** 2) @ J
     B = np.nan_to_num(B, nan=0.0, posinf=0.0, neginf=0.0)
+
     lam = np.linalg.eigvalsh(B)
     lam = np.clip(lam, 0, None)
-    denom = (lam**2).sum()
+    denom = (lam ** 2).sum()
     if denom <= 0:
         return np.nan
-    return (lam.sum()**2) / denom
+    return (lam.sum() ** 2) / denom
 
 def entropy(V):
+    """Normalize absolute values of a vector to sum to 1."""
     v = np.abs(V)
     return v / v.sum()
