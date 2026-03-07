@@ -3,8 +3,6 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-from scipy.spatial.distance import pdist, squareform
-from scipy.stats import rankdata
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
@@ -12,6 +10,7 @@ import imageio.v2 as iio
 
 import matplotlib as mpl
 from PIL import Image, ImageDraw, ImageFont
+import manifold_dynamics.tuning_utils as tut
 
 '''
 same as _plot.py, but computes multiple ROIs and plots them all together (TOP & SHUFF)
@@ -20,7 +19,7 @@ also forgot to mention in other script:
 '''
 
 def rdm_sequence(dat, ROI, mode='top', step=10, k_max=200, metric='correlation',
-                 onset=50, resp=(50,220), base=(-50,0), random_state=0):
+                 onset=50, resp=(50,220), base=(-50,0), random_state=0, tstart=100, tend=350):
     rng = np.random.default_rng(random_state)
     ONSET = onset
     RESP = slice(ONSET + resp[0], ONSET + resp[1])
@@ -41,13 +40,12 @@ def rdm_sequence(dat, ROI, mode='top', step=10, k_max=200, metric='correlation',
     rdms = []
     for k in sizes:
         idx = order[:k]
-        Xavg = np.nanmean(X[:, :, idx], axis=0)      # (time, k)
-        R = squareform(pdist(Xavg, metric='correlation'))   # (time, time)
+        R, _ = tut.tuning_rdm(X=X, indices=idx, tstart=tstart, tend=tend, metric=metric)
         rdms.append(R)
     return sizes, rdms
 
 def rdv_redo(dat, ROI, mode='top', step=5, k_max=200, metric='correlation',
-                 onset=50, resp=(50,220), base=(-50,0), random_state=0):
+                 onset=50, resp=(50,220), base=(-50,0), random_state=0, tstart=100, tend=350):
     rng = np.random.default_rng(random_state)
     ONSET = onset
     RESP = slice(ONSET + resp[0], ONSET + resp[1])
@@ -68,13 +66,10 @@ def rdv_redo(dat, ROI, mode='top', step=5, k_max=200, metric='correlation',
     rdvs = []
     for k in tqdm(sizes):
         idx = order[:k]
-        Ximg = X[:, :, idx] # (units, time, images)
-        Xrdv = np.array([pdist(Ximg[:, t, :].T, metric='correlation') for t in range(Ximg.shape[1])])
-        if metric == 'spearman':
-            Xrdv = np.apply_along_axis(rankdata, 1, Xrdv)   # rank each row
-            R = squareform(pdist(Xrdv, metric='correlation'))   # (time, time)
-        else:
-            R = squareform(pdist(Xrdv, metric=metric))   # (time, time)
+        metric_use = 'correlation' if metric == 'spearman' else metric
+        R, _ = tut.tuning_rdm(
+            X=X, indices=idx, tstart=tstart, tend=tend, metric=metric_use
+        )
         rdvs.append(R)
     return sizes, rdvs
 

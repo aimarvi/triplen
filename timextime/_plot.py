@@ -3,9 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-from scipy.spatial.distance import pdist, squareform
 from matplotlib.animation import FuncAnimation, PillowWriter
 from tqdm import tqdm
+import manifold_dynamics.tuning_utils as tut
 
 '''
 makes a GIF for a single ROI in dat
@@ -14,7 +14,7 @@ calculate time x time RDMs using different sets of images (inc. random selection
 '''
 
 def rdm_gif(dat, ROI, mode='top', step=10, k_max=200, metric='correlation',
-            onset=50, resp=(50,220), base=(-50,0), session=None):
+            onset=50, resp=(50,220), base=(-50,0), session=None, tstart=100, tend=350):
     """
     mode: 'top' or 'shuffle'
     step/k_max: grow subset sizes [step, 2*step, ..., k_max]
@@ -42,8 +42,7 @@ def rdm_gif(dat, ROI, mode='top', step=10, k_max=200, metric='correlation',
     rdms = []
     for k in sizes:
         idx = order[:k]
-        Xavg = np.nanmean(X[:, :, idx], axis=0)          # (time, k)
-        R = squareform(pdist(Xavg, metric=metric))        # (time, time)
+        R, _ = tut.tuning_rdm(X=X, indices=idx, tstart=tstart, tend=tend, metric=metric)
         rdms.append(R)
     vmin, vmax = 0.0, np.nanmax([R.max() for R in rdms])  # lock scale across frames
 

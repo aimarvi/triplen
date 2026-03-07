@@ -6,8 +6,6 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 from scipy.ndimage import gaussian_filter1d
-from scipy.spatial.distance import pdist, squareform
-from scipy.stats import rankdata
 
 import manifold_dynamics.session_raster_extraction as sre
 import manifold_dynamics.spike_response_stats as srs
@@ -23,7 +21,7 @@ class CvConfig:
     baseline_ms: tuple[int, int] = (-50, 0)
     response_ms: tuple[int, int] = (50, 220)
     tstart: int = 100
-    tend: int = 400
+    tend: int = 350
     k_step: int = 5
     k_max: int = 200
     l2_step: int = 5
@@ -81,7 +79,7 @@ def _split_repeats_odd_even(
     return split_a, split_b
 
 
-def _responsive_mask(split_4d: np.ndarray, config: CvConfig) -> np.ndarray:
+def _responsive_mask(split_4d: np.ndarray, config: CvConfig, roi_uid: str = "unknown_roi") -> np.ndarray:
     """
     Return mask of units responsive in a split.
 
@@ -98,10 +96,12 @@ def _responsive_mask(split_4d: np.ndarray, config: CvConfig) -> np.ndarray:
     """
     pvals = srs.is_responsive(
         X=split_4d,
+        roi_uid=roi_uid,
+        test_type="paired",
         onset=config.onset_ms,
         baseline_win=config.baseline_ms,
-        stim_win=[(50, 120)],
-        # stim_win=((50, 120), (120, 240)),
+        stim_win=[config.response_ms],
+        image_slice=slice(1000, None),
     )
     return np.any(pvals < config.alpha_responsive, axis=1)
 
@@ -164,26 +164,14 @@ def _time_time_tuning_rdm(split_3d: np.ndarray, image_idx: np.ndarray, config: C
             R_time_time (np.ndarray):
                 Square time-by-time representational dissimilarity matrix.
     """
-    X = split_3d[:, config.tstart : config.tend, :][:, :, image_idx]
-
-    if X.shape[2] < 2:
-        raise ValueError("Need at least 2 images to form an image RDM.")
-
-    rdv_by_time = np.array(
-        [pdist(X[:, t, :].T, metric="correlation") for t in range(X.shape[1])]
+    R, _ = tut.tuning_rdm(
+        X=split_3d,
+        indices=image_idx,
+        tstart=config.tstart,
+        tend=config.tend,
+        metric="correlation",
     )
-    valid_pair_mask = np.isfinite(rdv_by_time).all(axis=0)
-    if int(np.sum(valid_pair_mask)) < 2:
-        raise ValueError(
-            "Insufficient finite image-pair distances across time for time-time RDM."
-        )
-    rdv_by_time = rdv_by_time[:, valid_pair_mask]
-    rdv_rank = np.apply_along_axis(rankdata, 1, rdv_by_time)
-    valid_time_mask = np.isfinite(rdv_rank).all(axis=1) & (np.nanstd(rdv_rank, axis=1) > 0)
-    if int(np.sum(valid_time_mask)) < 2:
-        raise ValueError("Insufficient non-constant timepoints for time-time RDM.")
-    rdv_rank = rdv_rank[valid_time_mask]
-    return squareform(pdist(rdv_rank, metric="correlation"))
+    return R
 
 
 def _estimate_top_k(split_3d_train: np.ndarray, config: CvConfig) -> int:
@@ -331,7 +319,7 @@ def run_combined_roi_cv(
             else:
                 train_4d, test_4d = split_b, split_a
 
-            train_mask = _responsive_mask(split_4d=train_4d, config=cfg)
+            train_mask = _responsive_mask(split_4d=train_4d, config=cfg, roi_uid=roi_uid)
             n_responsive = int(np.sum(train_mask))
             if n_responsive == 0:
                 continue
@@ -358,7 +346,7 @@ def run_combined_roi_cv(
         idx_local = np.arange(1000, test_3d.shape[2])
 
         if idx_local.size < 2:
-            raise ValueError(f"{roi_uid} {fold_name}: fewer than 2 localizer images.")
+            raise ValueError(f"{roi_uid} {fold_name}: fewer than 2 images in local manifold.")
 
         R_top_k = _time_time_tuning_rdm(split_3d=test_3d, image_idx=idx_top_k, config=cfg)
         R_global = _time_time_tuning_rdm(split_3d=test_3d, image_idx=idx_global, config=cfg)

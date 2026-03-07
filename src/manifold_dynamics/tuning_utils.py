@@ -23,7 +23,17 @@ def response_array(dat, roi):
 
     return X
 
-def geo_rdm(dat, roi, mode='top', step=5, k_max=200, metric='correlation', random_state=RAND):
+def geo_rdm(
+    dat,
+    roi,
+    mode='top',
+    step=5,
+    k_max=200,
+    metric='correlation',
+    random_state=RAND,
+    tstart=100,
+    tend=350,
+):
     '''
     calculates a series of Time x Time RDMs:
       (1) for a single time point
@@ -65,18 +75,11 @@ def geo_rdm(dat, roi, mode='top', step=5, k_max=200, metric='correlation', rando
     rdvs = []
     for k in tqdm(sizes):
         idx = order[:k]
-        # 50 - 350 msec time window, relative to image onset
-        # suggested by TK
-        Ximg = X[:, 100:400, idx] # (units, time, images)
-        Xrdv = np.array([pdist(Ximg[:, t, :].T, metric='correlation') for t in range(Ximg.shape[1])])
-
-        # rank so distance metric is spearman instead of pearson
-        Xrdv = np.apply_along_axis(rankdata, 1, Xrdv)
-        R = squareform(pdist(Xrdv, metric=metric))   # (time, time)
+        R, _ = tuning_rdm(X=X, indices=idx, tstart=tstart, tend=tend, metric=metric)
         rdvs.append(R)
     return sizes, rdvs
 
-def static_rdm(dat, roi, mode='top', scale=30, tstart=100, tend=400, metric='correlation', random_state=RAND):
+def static_rdm(dat, roi, mode='top', scale=30, tstart=100, tend=350, metric='correlation', random_state=RAND):
     '''
     calculates a single Time x Time RDM, given:
       (1) a scale (top k images)
@@ -110,26 +113,49 @@ def static_rdm(dat, roi, mode='top', scale=30, tstart=100, tend=400, metric='cor
     # pick image subset
     idx = order[:scale]
 
-    # restrict to desired time window
-    Ximg = X[:, tstart:tend, idx]                    # (units, time, images)
-
     # only look at localizer images
     if scale == -1:
-        Ximg = X[:, tstart:tend, 1000:]
+        idx = slice(1000, X.shape[2])
 
-    # time-by-RDV (one RDV per timepoint)
+    return tuning_rdm(X=X, indices=idx, tstart=tstart, tend=tend, metric=metric)
+
+def tuning_rdm(X, indices, tstart=100, tend=350, metric='correlation'):
+    '''
+    Build a time x time tuning RDM from unit responses.
+
+    This is the canonical implementation for time-time analysis and is shared by:
+      - `specific_static_rdm`
+      - cross-validated time-time code (`cv_timextime`)
+
+    args:
+        X (array): response tensor (units, time, images)
+        indices (slice | array-like): image indices to include
+        tstart (int): start index of time window
+        tend (int): end index of time window (exclusive)
+        metric (str): distance metric for time-time RDM
+
+    returns:
+        R (array): Time x Time RDM (square)
+        Xrdv (array): per-time image-pair RDV matrix (time, n_pairs)
+    '''
+    X = np.asarray(X)
+    if X.ndim != 3:
+        raise ValueError(f"Expected X with shape (units,time,images), got {X.shape}")
+
+    Ximg = X[:, tstart:tend, indices]
+    if Ximg.shape[2] < 2:
+        raise ValueError("Need at least 2 images to form an image RDM.")
+
     Xrdv = np.array([
         pdist(Ximg[:, t, :].T, metric='correlation')
         for t in range(Ximg.shape[1])
-    ])  # (time, n_pairs)
+    ])
 
-    # # Spearman: rank-transform rows, then use correlation distance across time
     Xrank = np.apply_along_axis(rankdata, 1, Xrdv)
-    R = squareform(pdist(Xrank, metric=metric))      # (time, time)
-
+    R = squareform(pdist(Xrank, metric=metric))
     return R, Xrdv
 
-def specific_static_rdm(dat, roi, indices, tstart=100, tend=400, metric='correlation', random_state=RAND):
+def specific_static_rdm(dat, roi, indices, tstart=100, tend=350, metric='correlation', random_state=RAND):
     '''
     calculates a single Time x Time RDM, given:
       (1) a set number of images
@@ -151,24 +177,9 @@ def specific_static_rdm(dat, roi, indices, tstart=100, tend=400, metric='correla
         R: array(Time x Time RDM) (square)
         Xrdv: vectorized form of R (pre rank transformation) 
     '''
-    rng = np.random.default_rng(random_state)
-
     # all image responses, thresholded by p-val
     X = response_array(dat, roi)
-    
-    Ximg = X[:, tstart:tend, indices]
-
-    # time-by-RDV (one RDV per timepoint)
-    Xrdv = np.array([
-        pdist(Ximg[:, t, :].T, metric='correlation')
-        for t in range(Ximg.shape[1])
-    ])  
-
-    # # Spearman: rank-transform rows, then use correlation distance across time
-    Xrank = np.apply_along_axis(rankdata, 1, Xrdv)
-    R = squareform(pdist(Xrank, metric=metric))      # (time, time)
-
-    return R, Xrdv
+    return tuning_rdm(X=X, indices=indices, tstart=tstart, tend=tend, metric=metric)
     
 
 def time_avg_rdm(dat, roi, window=RESP, images='all', metric='correlation', random_state=RAND):
@@ -323,12 +334,26 @@ def ED2(R):
     Alternate form of effective dimensionality 
     Use when R is a matrix of distance values (eg. cosine distance, pearson r, spearman rho, etc)
     """
+    R = np.asarray(R, dtype=float)
+    if R.ndim != 2 or R.shape[0] != R.shape[1]:
+        raise ValueError(f"ED2 expects a square 2D matrix, got shape {R.shape}")
+
+    # Filter to rows/cols that are fully finite so eigendecomposition is stable.
+    finite_mask = np.isfinite(R).all(axis=0) & np.isfinite(R).all(axis=1)
+    R = R[np.ix_(finite_mask, finite_mask)]
+    if R.shape[0] < 2:
+        return np.nan
+
     n = R.shape[0]
     J = np.eye(n) - np.ones((n, n))/n
     B = -0.5 * J @ (R**2) @ J
+    B = np.nan_to_num(B, nan=0.0, posinf=0.0, neginf=0.0)
     lam = np.linalg.eigvalsh(B)
     lam = np.clip(lam, 0, None)
-    return (lam.sum()**2) / (lam**2).sum()
+    denom = (lam**2).sum()
+    if denom <= 0:
+        return np.nan
+    return (lam.sum()**2) / denom
 
 def entropy(V):
     v = np.abs(V)
