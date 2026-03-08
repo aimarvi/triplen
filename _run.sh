@@ -47,4 +47,4 @@ if [[ -z "${target}" ]]; then
   exit 1
 fi
 
-uv run python crossval.py --target "$target"
+uv run python crossval.py --target "$target" --save
