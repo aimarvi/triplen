@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import argparse
+import argparse, fsspec
 
 import numpy as np
 import pandas as pd
@@ -40,6 +40,7 @@ def main() -> None:
     parser.add_argument("--bin-size-ms", type=int, default=20)
     parser.add_argument("--tstart", type=int, default=100)
     parser.add_argument("--tend", type=int, default=350)
+    parser.add_argument("--save", action="store_true")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
@@ -165,9 +166,16 @@ def main() -> None:
         )
 
     df_out = pd.DataFrame(rows)
+
+    if args.save:
+        s3_out = f"{pth.SAVEDIR}/crossval/{args.target}.pkl"
+        with fsspec.open(s3_out, "wb") as f:
+            df_out.to_pickle(f)
+
     print(df_out.to_string(index=False))
     print(f"mean ED_topk: {df_out['ED_topk'].mean():.6f}")
     print(f"mean ED_all:  {df_out['ED_all'].mean():.6f}")
+
 
 
 if __name__ == "__main__":
