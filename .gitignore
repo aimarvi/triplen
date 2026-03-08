@@ -25,4 +25,4 @@ OLD*
 errlog/
 
 # testing on local
-audit.*
+*audit.*
