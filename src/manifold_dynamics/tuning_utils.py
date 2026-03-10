@@ -6,7 +6,6 @@ from scipy.spatial.distance import pdist, squareform
 from scipy.stats import rankdata
 from tqdm import tqdm
 
-
 # -----------------------------------------------------------------------------
 # Global Analysis Defaults
 # -----------------------------------------------------------------------------

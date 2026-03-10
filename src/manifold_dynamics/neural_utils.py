@@ -93,6 +93,86 @@ def responsive_mask(uid, raster_4d, alpha=0.05):
 
     return np.isfinite(pvals) & (pvals < alpha)
 
+
+def significant_trial_raster(roi_uid: str, alpha: float = 0.05, bin_size_ms: int = 20) -> np.ndarray:
+    """
+    Return trial-level raster data for one ROI target after significance filtering.
+
+    Accepted ROI target formats:
+        - 4-part UID: ``SesIdx.RoiIndex.AREALABEL.Categoty``
+        - 3-part ROI: ``RoiIndex.AREALABEL.Categoty``
+
+    For 3-part ROI targets, all matching sessions are combined across the unit axis.
+    Sessions with fewer trials are padded with ``NaN`` along the repeat axis before
+    concatenation so the final output is a single dense array.
+
+    Args:
+        roi_uid: ROI target string in 3-part or 4-part format.
+        alpha: P-value threshold for responsive-unit filtering.
+        bin_size_ms: PSTH bin width in ms applied before significance filtering.
+
+    Returns:
+        Array with shape ``(units, time, images, trials)``.
+    """
+    uid_csv_local = vst.fetch(f"{pth.OTHERS}/roi-uid.csv")
+    df_uid = pd.read_csv(uid_csv_local)
+
+    target_parts = roi_uid.split(".")
+    if len(target_parts) not in (3, 4):
+        raise ValueError(
+            "roi_uid must be either 4-part UID (SesIdx.RoiIndex.AREALABEL.Categoty) "
+            "or 3-part ROI (RoiIndex.AREALABEL.Categoty)."
+        )
+
+    if len(target_parts) == 4:
+        roi_uids = [roi_uid]
+    else:
+        roi_index = int(target_parts[0])
+        area_label = target_parts[1]
+        category = target_parts[2]
+        roi_uids = []
+        for uid in df_uid["uid"].astype(str):
+            parts = uid.split(".")
+            if len(parts) != 4:
+                continue
+            if int(parts[1]) == roi_index and parts[2] == area_label and parts[3] == category:
+                roi_uids.append(uid)
+        roi_uids = sorted(roi_uids, key=lambda x: int(x.split(".")[0]))
+
+    if len(roi_uids) == 0:
+        raise ValueError(f"No matching ROI UIDs found for target: {roi_uid}")
+
+    raster_parts = []
+    max_trials = 0
+    for uid in roi_uids:
+        raster_4d = load_cached_session_raster(uid)
+        raster_4d = bin_to_psth(raster_4d, bin_size_ms=bin_size_ms)
+        responsive = responsive_mask(uid=uid, raster_4d=raster_4d, alpha=alpha)
+        if int(np.sum(responsive)) == 0:
+            continue
+        raster_sig = raster_4d[responsive]
+        raster_parts.append(raster_sig)
+        max_trials = max(max_trials, raster_sig.shape[3])
+
+    if len(raster_parts) == 0:
+        raise ValueError(f"No responsive units found for target: {roi_uid}")
+
+    padded_parts = []
+    for raster_sig in raster_parts:
+        if raster_sig.shape[3] == max_trials:
+            padded_parts.append(raster_sig)
+            continue
+
+        padded = np.full(
+            (raster_sig.shape[0], raster_sig.shape[1], raster_sig.shape[2], max_trials),
+            np.nan,
+            dtype=raster_sig.dtype,
+        )
+        padded[:, :, :, : raster_sig.shape[3]] = raster_sig
+        padded_parts.append(padded)
+
+    return np.concatenate(padded_parts, axis=0)
+
 def compute_noise_ceiling(data_in):
     """
     Compute the noise ceiling signal-to-noise ratio (SNR) and percentage noise ceiling for each unit.
