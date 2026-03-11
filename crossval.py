@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-import argparse, fsspec
+import argparse
+import pickle
+
+import fsspec
 
 import numpy as np
 import pandas as pd
@@ -35,7 +38,7 @@ def main() -> None:
             "or ROI key (3-part: RoiIndex.AREALABEL.Categoty)."
         ),
     )
-    parser.add_argument("--top-k", type=int, default=30)
+    parser.add_argument("--top-k", type=int, default=None)
     parser.add_argument("--alpha", type=float, default=0.05)
     parser.add_argument("--bin-size-ms", type=int, default=20)
     parser.add_argument("--tstart", type=int, default=100)
@@ -79,7 +82,18 @@ def main() -> None:
     if len(roi_uids) == 0:
         raise ValueError(f"No matching ROI UIDs found for target: {args.target}")
 
+    topk_local = vst.fetch(f"{pth.OTHERS}/topk_vals.pkl")
+    with open(topk_local, "rb") as f:
+        topk_vals = pickle.load(f)
+
+    top_k = args.top_k
+    if top_k is None:
+        if roi_label not in topk_vals:
+            raise ValueError(f"No top-k entry found for ROI: {roi_label}")
+        top_k = int(topk_vals[roi_label]["k"])
+
     vprint(f"Resolved ROI target {args.target} to UIDs: {roi_uids}")
+    vprint(f"Using top-k = {top_k}")
 
     rasters_by_uid: dict[str, np.ndarray] = {}
     for uid in roi_uids:
@@ -131,7 +145,7 @@ def main() -> None:
             train_3d[:, base, :], axis=(0, 1)
         )
         order = np.argsort(scores)[::-1]
-        idx_topk = order[: args.top_k]
+        idx_topk = order[: top_k]
         idx_all = np.arange(test_3d.shape[2])
 
         R_topk, _ = tut.tuning_rdm(
@@ -158,7 +172,7 @@ def main() -> None:
                 "roi_uid": "|".join(roi_uids),
                 "fold": fold_name,
                 "n_units_responsive_train": n_units_responsive_total,
-                "top_k": int(args.top_k),
+                "top_k": int(top_k),
                 "ED_topk": ed_topk,
                 "ED_all": ed_all,
                 "compression_topk_vs_all": 1.0 - (ed_topk / ed_all),

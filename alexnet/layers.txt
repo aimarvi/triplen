@@ -1,0 +1,20 @@
+AlexNet Layer Key Map
+
+Relevant layer keys for cognitive computational neuroscience analyses:
+
+pool1   -> features.2
+pool2   -> features.5
+relu3   -> features.7
+relu4   -> features.9
+relu5   -> features.11
+pool5   -> features.12
+fc6     -> classifier.1
+relu6   -> classifier.2
+fc7     -> classifier.4
+relu7   -> classifier.5
+fc8     -> classifier.6
+
+Notes:
+- `fc6` and `fc7` are the linear layers.
+- `relu6` and `relu7` are the post-nonlinearity versions often used for model-brain comparisons.
+- In this repo, `classifier.5` is the fc7-derived feature key currently used for neighbor analyses.

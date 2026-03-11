@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import os
+import argparse
 import pickle
-from pathlib import Path
 
+import fsspec
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -15,127 +15,191 @@ import manifold_dynamics.tuning_utils as tut
 import visionlab_utils.storage as vst
 
 
-# Ad-hoc configuration
-ROI_TARGET = os.getenv("ROI_TARGET", "19.Unknown.F")
-TOP_K = 30
-ALPHA = 0.05
-BIN_SIZE_MS = 20
-TSTART = 100
-TEND = 350
-FEATURE_URI = f"{pth.SAVEDIR}/alexnet/alexnet_acts.pkl"
-FEATURE_LAYERS = ["classifier.5"]  # fc7 post-ReLU
-RANDOM_STATE = 0
-VERBOSE = True
-OUTPUT_PATH = Path(
-    os.getenv(
-        "OUTPUT_PATH",
-        str(Path.home() / "Downloads" / f"neighbor_scales_{ROI_TARGET.replace('.', '_')}.png"),
+def main() -> None:
+    """
+    Compare top-k, AlexNet-neighbor, and random-set ED for one ROI target.
+
+    Target format options:
+      - ROI UID (4 parts): ``SesIdx.RoiIndex.AREALABEL.Categoty``
+      - ROI key (3 parts): ``RoiIndex.AREALABEL.Categoty``
+    """
+    parser = argparse.ArgumentParser(
+        description="Neighbor-set ED analysis for one ROI target."
     )
-)
+    parser.add_argument(
+        "--target",
+        type=str,
+        required=True,
+        help=(
+            "ROI UID (4-part: SesIdx.RoiIndex.AREALABEL.Categoty) "
+            "or ROI key (3-part: RoiIndex.AREALABEL.Categoty)."
+        ),
+    )
+    parser.add_argument("--top-k", type=int, default=None)
+    parser.add_argument("--alpha", type=float, default=0.05)
+    parser.add_argument("--bin-size-ms", type=int, default=20)
+    parser.add_argument("--tstart", type=int, default=100)
+    parser.add_argument("--tend", type=int, default=350)
+    parser.add_argument("--feature-uri", type=str, default=f"{pth.SAVEDIR}/alexnet/alexnet_acts.pkl")
+    parser.add_argument(
+        "--feature-layers",
+        nargs="+",
+        default=["classifier.5"],
+        help="AlexNet layers used to define neighbor sets.",
+    )
+    parser.add_argument("--random-state", type=int, default=0)
+    parser.add_argument("--save", action="store_true")
+    parser.add_argument("--verbose", action="store_true")
+    args = parser.parse_args()
 
+    def vprint(msg: str) -> None:
+        if args.verbose:
+            print(msg)
 
-def vprint(msg: str) -> None:
-    if VERBOSE:
-        print(msg)
+    target_parts = args.target.split(".")
+    if len(target_parts) not in (3, 4):
+        raise ValueError(
+            "Invalid --target format. Use 4-part UID (SesIdx.RoiIndex.AREALABEL.Categoty) "
+            "or 3-part ROI key (RoiIndex.AREALABEL.Categoty)."
+        )
+    if len(target_parts) == 4:
+        roi_label = f"{int(target_parts[1]):02d}.{target_parts[2]}.{target_parts[3]}"
+    else:
+        roi_label = args.target
 
+    topk_local = vst.fetch(f"{pth.OTHERS}/topk_vals.pkl")
+    with open(topk_local, "rb") as f:
+        topk_vals = pickle.load(f)
 
-raster_4d = nu.significant_trial_raster(roi_uid=ROI_TARGET, alpha=ALPHA, bin_size_ms=BIN_SIZE_MS)
-X = np.nanmean(raster_4d, axis=3)
-vprint(f"Responsive trial raster shape (units, time, images, trials): {raster_4d.shape}")
-vprint(f"Trial-averaged PSTH shape (units, time, images): {X.shape}")
+    top_k = args.top_k
+    if top_k is None:
+        if roi_label not in topk_vals:
+            raise ValueError(f"No top-k entry found for ROI: {roi_label}")
+        top_k = int(topk_vals[roi_label]["k"])
 
-image_order = tut.rank_images_by_response(X)
-top_indices = image_order[:TOP_K]
-vprint(f"Top-{TOP_K} seed image indices: {top_indices.tolist()}")
+    raster_4d = nu.significant_trial_raster(
+        roi_uid=args.target,
+        alpha=args.alpha,
+        bin_size_ms=args.bin_size_ms,
+    )
+    X = np.nanmean(raster_4d, axis=3)
+    vprint(f"Responsive trial raster shape (units, time, images, trials): {raster_4d.shape}")
+    vprint(f"Trial-averaged PSTH shape (units, time, images): {X.shape}")
 
-acts_local = vst.fetch(FEATURE_URI)
-with open(acts_local, "rb") as f:
-    acts = pickle.load(f)
+    image_order = tut.rank_images_by_response(X)
+    top_indices = image_order[: top_k]
+    vprint(f"Using top-k = {top_k}")
+    vprint(f"Top-{top_k} seed image indices: {top_indices.tolist()}")
 
-feature_blocks = []
-for layer in FEATURE_LAYERS:
-    if layer not in acts:
-        raise ValueError(f"Missing AlexNet feature layer: {layer}")
-    arr = acts[layer]
-    if hasattr(arr, "detach"):
-        arr = arr.detach().cpu().numpy()
-    arr = np.asarray(arr)
-    if arr.ndim != 2:
-        raise ValueError(f"Expected 2D activations for {layer}, got shape {arr.shape}")
-    feature_blocks.append(arr)
-    vprint(f"{layer}: feature shape={arr.shape}")
+    acts_local = vst.fetch(args.feature_uri)
+    with open(acts_local, "rb") as f:
+        acts = pickle.load(f)
 
-feature_matrix = np.concatenate(feature_blocks, axis=1)
-if feature_matrix.shape[0] != X.shape[2]:
-    raise ValueError(
-        f"Feature/image mismatch: feature_matrix has {feature_matrix.shape[0]} images, "
-        f"but PSTH has {X.shape[2]} images."
+    feature_blocks = []
+    for layer in args.feature_layers:
+        if layer not in acts:
+            raise ValueError(f"Missing AlexNet feature layer: {layer}")
+        arr = acts[layer]
+        if hasattr(arr, "detach"):
+            arr = arr.detach().cpu().numpy()
+        arr = np.asarray(arr)
+        if arr.ndim != 2:
+            raise ValueError(f"Expected 2D activations for {layer}, got shape {arr.shape}")
+        feature_blocks.append(arr)
+        vprint(f"{layer}: feature shape={arr.shape}")
+
+    feature_matrix = np.concatenate(feature_blocks, axis=1)
+    if feature_matrix.shape[0] != X.shape[2]:
+        raise ValueError(
+            f"Feature/image mismatch: feature_matrix has {feature_matrix.shape[0]} images, "
+            f"but PSTH has {X.shape[2]} images."
+        )
+
+    rng = np.random.default_rng(args.random_state)
+    nearest_sets = mut.neighbor_sets(
+        feature_matrix=feature_matrix,
+        seed_indices=top_indices,
+        k=top_k,
     )
 
-rng = np.random.default_rng(RANDOM_STATE)
-nearest_sets = mut.neighbor_sets(feature_matrix=feature_matrix, seed_indices=top_indices, k=TOP_K)
-R_topk, _ = tut.tuning_rdm(
-    X=X,
-    indices=top_indices,
-    tstart=TSTART,
-    tend=TEND,
-    metric="correlation",
-)
-ed_topk = float(tut.ED2(R_topk))
-
-rows = []
-for set_idx, (seed_idx, neighbor_indices) in enumerate(zip(top_indices, nearest_sets)):
-    random_indices = rng.choice(X.shape[2], size=TOP_K, replace=False)
-
-    R_neighbor, _ = tut.tuning_rdm(
+    R_topk, _ = tut.tuning_rdm(
         X=X,
-        indices=neighbor_indices,
-        tstart=TSTART,
-        tend=TEND,
+        indices=top_indices,
+        tstart=args.tstart,
+        tend=args.tend,
         metric="correlation",
     )
-    R_random, _ = tut.tuning_rdm(
-        X=X,
-        indices=random_indices,
-        tstart=TSTART,
-        tend=TEND,
-        metric="correlation",
+    ed_topk = float(tut.ED2(R_topk))
+
+    rows = []
+    for set_idx, (seed_idx, neighbor_indices) in enumerate(zip(top_indices, nearest_sets)):
+        random_indices = rng.choice(X.shape[2], size=top_k, replace=False)
+
+        R_neighbor, _ = tut.tuning_rdm(
+            X=X,
+            indices=neighbor_indices,
+            tstart=args.tstart,
+            tend=args.tend,
+            metric="correlation",
+        )
+        R_random, _ = tut.tuning_rdm(
+            X=X,
+            indices=random_indices,
+            tstart=args.tstart,
+            tend=args.tend,
+            metric="correlation",
+        )
+
+        ed_neighbor = float(tut.ED2(R_neighbor))
+        ed_random = float(tut.ED2(R_random))
+
+        rows.append(
+            {
+                "roi": args.target,
+                "set_idx": int(set_idx),
+                "seed_image_idx": int(seed_idx),
+                "neighbor_indices": neighbor_indices.tolist(),
+                "random_indices": random_indices.tolist(),
+                "ED_topk": ed_topk,
+                "ED_neighbor": ed_neighbor,
+                "ED_random": ed_random,
+                "delta_neighbor_minus_random": ed_neighbor - ed_random,
+                "delta_neighbor_minus_topk": ed_neighbor - ed_topk,
+                "delta_random_minus_topk": ed_random - ed_topk,
+            }
+        )
+
+    df_out = pd.DataFrame(rows)
+
+    print(
+        df_out[
+            ["set_idx", "seed_image_idx", "ED_neighbor", "ED_random", "delta_neighbor_minus_random"]
+        ].to_string(index=False)
     )
+    print(f"ED_topk:          {ed_topk:.6f}")
+    print(f"mean ED_neighbor: {df_out['ED_neighbor'].mean():.6f}")
+    print(f"mean ED_random:   {df_out['ED_random'].mean():.6f}")
+    print(f"mean delta:       {df_out['delta_neighbor_minus_random'].mean():.6f}")
 
-    ed_neighbor = float(tut.ED2(R_neighbor))
-    ed_random = float(tut.ED2(R_random))
-
-    rows.append(
-        {
-            "roi": ROI_TARGET,
-            "set_idx": int(set_idx),
-            "seed_image_idx": int(seed_idx),
-            "neighbor_indices": neighbor_indices.tolist(),
-            "random_indices": random_indices.tolist(),
-            "ED_neighbor": ed_neighbor,
-            "ED_random": ed_random,
-            "delta_neighbor_minus_random": ed_neighbor - ed_random,
-        }
+    fig, ax = plt.subplots(1, 1, figsize=(5, 4))
+    ax.boxplot(
+        [np.array([ed_topk]), df_out["ED_neighbor"].to_numpy(), df_out["ED_random"].to_numpy()],
+        positions=[1, 2, 3],
+        widths=0.5,
+        tick_labels=["top-k", "neighbor", "random"],
     )
+    ax.set_ylabel("effective dimensionality")
+    ax.set_title(args.target)
+    ax.scatter(1, ed_topk, color="black", zorder=3)
+    ax.text(1, ed_topk, f"{ed_topk:.2f}", ha="center", va="bottom")
 
-df_out = pd.DataFrame(rows)
+    if args.save:
+        s3_base = f"{pth.SAVEDIR}/neighbors/{args.target}"
+        with fsspec.open(f"{s3_base}.pkl", "wb") as f:
+            df_out.to_pickle(f)
+        with fsspec.open(f"{s3_base}.png", "wb") as f:
+            fig.savefig(f, format="png", dpi=300, bbox_inches="tight")
 
-print(df_out[["set_idx", "seed_image_idx", "ED_neighbor", "ED_random", "delta_neighbor_minus_random"]].to_string(index=False))
-print(f"ED_topk:          {ed_topk:.6f}")
-print(f"mean ED_neighbor: {df_out['ED_neighbor'].mean():.6f}")
-print(f"mean ED_random:   {df_out['ED_random'].mean():.6f}")
-print(f"mean delta:       {df_out['delta_neighbor_minus_random'].mean():.6f}")
 
-fig, ax = plt.subplots(1, 1, figsize=(5, 4))
-ax.boxplot(
-    [np.array([ed_topk]), df_out["ED_neighbor"].to_numpy(), df_out["ED_random"].to_numpy()],
-    positions=[1, 2, 3],
-    widths=0.5,
-    tick_labels=["top-k", "neighbor", "random"],
-)
-ax.set_ylabel("effective dimensionality")
-ax.set_title(ROI_TARGET)
-ax.scatter(1, ed_topk, color="black", zorder=3)
-ax.text(1, ed_topk, f"{ed_topk:.2f}", ha="center", va="bottom")
-fig.savefig(OUTPUT_PATH, dpi=300, bbox_inches="tight")
-print(f"Saved figure to: {OUTPUT_PATH}")
+if __name__ == "__main__":
+    main()
