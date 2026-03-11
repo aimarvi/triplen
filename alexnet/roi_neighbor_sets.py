@@ -5,6 +5,7 @@ import pickle
 import numpy as np
 import pandas as pd
 
+import manifold_dynamics.model_utils as mut
 import manifold_dynamics.neural_utils as nu
 import manifold_dynamics.paths as pth
 import manifold_dynamics.tuning_utils as tut
@@ -17,7 +18,7 @@ TOP_K = 30
 ALPHA = 0.05
 BIN_SIZE_MS = 20
 FEATURE_URI = f"{pth.SAVEDIR}/alexnet/alexnet_acts.pkl"
-FEATURE_LAYERS = ["classifier.2", "classifier.5"]  # fc6/fc7 post-ReLU
+FEATURE_LAYERS = ["classifier.5"]  # fc7 post-ReLU
 VERBOSE = True
 
 
@@ -61,10 +62,9 @@ if feature_matrix.shape[0] != X.shape[2]:
         f"but PSTH has {X.shape[2]} images."
     )
 
+nearest_sets = mut.neighbor_sets(feature_matrix=feature_matrix, seed_indices=top_indices, k=TOP_K)
 neighbor_sets = []
-for seed_idx in top_indices:
-    distances = np.linalg.norm(feature_matrix - feature_matrix[seed_idx], axis=1)
-    nearest = np.argsort(distances)[:TOP_K]
+for seed_idx, nearest in zip(top_indices, nearest_sets):
     neighbor_sets.append(
         {
             "seed_image_idx": int(seed_idx),

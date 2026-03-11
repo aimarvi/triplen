@@ -2,6 +2,7 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Iterable, Sequence
 
+import numpy as np
 from PIL import Image
 
 import torch
@@ -94,3 +95,34 @@ def extract_model_activations(
             hook.remove()
 
     return activations
+
+
+def neighbor_sets(feature_matrix: np.ndarray, seed_indices: Sequence[int], k: int) -> list[np.ndarray]:
+    """
+    Return nearest-neighbor image sets for a collection of seed images.
+
+    Args:
+        feature_matrix: Image feature matrix with shape (images, features).
+        seed_indices: Seed image indices.
+        k: Number of images to retain per seed, including the seed itself.
+
+    Returns:
+        List of integer index arrays, one per seed.
+    """
+    X = np.asarray(feature_matrix)
+    if X.ndim != 2:
+        raise ValueError(f"feature_matrix must be 2D, got shape {X.shape}")
+    if k < 1:
+        raise ValueError(f"k must be >= 1, got {k}")
+
+    seeds = np.asarray(seed_indices, dtype=int)
+    if seeds.ndim != 1:
+        raise ValueError("seed_indices must be 1D")
+    if np.any(seeds < 0) or np.any(seeds >= X.shape[0]):
+        raise ValueError("seed_indices contain out-of-bounds values")
+
+    sets = []
+    for seed_idx in seeds:
+        distances = np.linalg.norm(X - X[seed_idx], axis=1)
+        sets.append(np.argsort(distances)[:k])
+    return sets
