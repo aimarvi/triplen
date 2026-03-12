@@ -194,7 +194,7 @@ def main() -> None:
     ax.text(1, ed_topk, f"{ed_topk:.2f}", ha="center", va="bottom")
 
     if args.save:
-        s3_base = f"{pth.SAVEDIR}/neighbors/{args.target}"
+        s3_base = f"{pth.SAVEDIR}/neighbors/{'_'.join(args.feature_layers)}/{args.target}"
         with fsspec.open(f"{s3_base}.pkl", "wb") as f:
             df_out.to_pickle(f)
         with fsspec.open(f"{s3_base}.png", "wb") as f:

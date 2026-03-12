@@ -3,7 +3,7 @@
 #SBATCH -c 1
 #SBATCH --mem=50G
 #SBATCH -t 05:00:00
-#SBATCH -o errlog/cv.%j.out
+#SBATCH -o errlog/neighbor.%j.out
 
 set -euo pipefail
 
@@ -52,4 +52,5 @@ if [[ -z "${target}" ]]; then
   exit 1
 fi
 
-uv run python crossval.py --target "$target" --save --verbose
+# uv run python crossval.py --target "$target" --save --verbose
+uv run python neighbor_scales.py --target "$target" --feature-layers classifier.2 classifier.5 --save --verbose
