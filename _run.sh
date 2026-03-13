@@ -53,4 +53,5 @@ if [[ -z "${target}" ]]; then
 fi
 
 # uv run python crossval.py --target "$target" --save --verbose
-uv run python neighbor_scales.py --target "$target" --feature-layers classifier.2 classifier.5 --save --verbose
+# uv run python neighbor_scales.py --target "$target" --feature-layers classifier.2 classifier.5 --save --verbose
+uv run python eigenspectra.py --target "$target" --save --verbose --log-scale
