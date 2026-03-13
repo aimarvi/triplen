@@ -102,6 +102,11 @@ def main() -> None:
         for t in range(trial_avg.shape[1]):
             M = trial_avg[:, t, idx]
             M = M - np.nanmean(M, axis=1, keepdims=True)
+
+            sd = np.nanstd(M, axis=1, keepdims=True) + 1e-8
+            # normalize by standard deviation
+            M = M / sd
+
             s = np.linalg.svd(np.nan_to_num(M, nan=0.0), full_matrices=False, compute_uv=False)
             lam = (s ** 2) / max(M.shape[1] - 1, 1)
             L[:, t] = lam[: args.n_pcs]
@@ -190,7 +195,7 @@ def main() -> None:
     print(df_summary.to_string(index=False))
 
     if args.save:
-        s3_base = f"{pth.SAVEDIR}/eigenspectra/{args.target}"
+        s3_base = f"{pth.SAVEDIR}/eigenspectra/sd-norm_{args.target}"
         with fsspec.open(f"{s3_base}.pkl", "wb") as f:
             pickle.dump(payload, f)
         with fsspec.open(f"{s3_base}_heatmap.png", "wb") as f:
