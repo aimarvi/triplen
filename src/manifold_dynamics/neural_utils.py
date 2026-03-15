@@ -17,9 +17,8 @@ def roi_uids_for_label(roi_label: str) -> list[str]:
     UID format in roi-uid.csv: SesIdx.RoiIndex.AREALABEL.Categoty
     ROI label format used here: AREALABEL_RoiIndex_Categoty
     """
-    uid_csv = os.path.join(pth.OTHERS, "roi-uid.csv")
-    f = vst.fetch(uid_csv)
-    df_uid = pd.read_csv(f)
+    uid_csv = Path(pth.OTHERS) / "roi-uid.csv"
+    df_uid = pd.read_csv(vst.fetch(str(uid_csv)))
 
     uids = []
     for uid in df_uid["uid"].astype(str):
