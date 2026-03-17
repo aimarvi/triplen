@@ -311,6 +311,41 @@ def l2(X):
     """Return L2 norm of a vector-like input."""
     return np.sqrt(np.sum(X ** 2))
 
+
+def treves_rolls_sparsity(X, axis=1):
+    """
+    Compute Treves-Rolls sparsity along one axis of an array.
+
+    The sparsity measure is:
+
+        S = 1 - ((mean(r)) ** 2 / mean(r ** 2))
+
+    where the mean is taken along the requested axis. The output contains one
+    sparsity value for each slice orthogonal to that axis.
+
+    Args:
+        X: Input array.
+        axis: Axis along which to compute sparsity.
+            ``axis=1`` on a ``(units, images)`` matrix returns one value per unit.
+            ``axis=0`` returns one value per image.
+
+    Returns:
+        1D array of Treves-Rolls sparsity values.
+    """
+    X = np.asarray(X, dtype=float)
+    if X.ndim < 2:
+        raise ValueError(f"treves_rolls_sparsity expects an array with ndim >= 2, got {X.shape}")
+    if axis < 0 or axis >= X.ndim:
+        raise ValueError(f"axis {axis} is out of bounds for shape {X.shape}")
+
+    mean_r = np.nanmean(X, axis=axis)
+    mean_r2 = np.nanmean(X ** 2, axis=axis)
+
+    out = np.full_like(mean_r, np.nan, dtype=float)
+    valid = np.isfinite(mean_r) & np.isfinite(mean_r2) & (mean_r2 > 0)
+    out[valid] = 1.0 - ((mean_r[valid] ** 2) / mean_r2[valid])
+    return out
+
 # -----------------------------------------------------------------------------
 # Effective Dimensionality & Entropy Metrics
 # -----------------------------------------------------------------------------
