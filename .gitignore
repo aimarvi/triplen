@@ -1,6 +1,9 @@
 # MacOS specific files
 .DS_Store
 
+# Agents
+.agents/
+
 # large-ish data files
 img_pool.mat 
 k_labels.pkl
