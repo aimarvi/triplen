@@ -59,21 +59,35 @@ def response_array(dat, roi):
 # Image Ordering and Selection
 # -----------------------------------------------------------------------------
 
-def rank_images_by_response(X: np.ndarray, response_window=RESP, baseline_window=BASE) -> np.ndarray:
+def rank_images_by_response(
+    X: np.ndarray,
+    response_window=RESP,
+    baseline_window=BASE,
+) -> np.ndarray:
     """
     Rank images by baseline-subtracted response magnitude (descending).
 
-    Args:
-        X: Tensor with shape ``(units, time, images)``.
-        response_window: Time slice used for response magnitude.
-        baseline_window: Time slice used for baseline subtraction.
+    accepts:
+        (units, time, images)
+        (units, time, images, trials)  # averages over trials
 
-    Returns:
-        Image index array sorted by descending score.
+    returns:
+        indices of images sorted by descending score
     """
-    scores = np.nanmean(X[:, response_window, :], axis=(0, 1)) - np.nanmean(
-        X[:, baseline_window, :], axis=(0, 1)
-    )
+    X = np.asarray(X, dtype=float)
+
+    if X.ndim == 4:
+        # average over trials
+        X = np.nanmean(X, axis=3)
+    elif X.ndim != 3:
+        raise ValueError(f'expected 3d or 4d array, got shape {X.shape}')
+
+    # compute mean response across units and time window
+    resp = np.nanmean(X[:, response_window, :], axis=(0, 1))
+    base = np.nanmean(X[:, baseline_window, :], axis=(0, 1))
+
+    scores = resp - base
+
     return np.argsort(scores)[::-1]
 
 

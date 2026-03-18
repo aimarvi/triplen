@@ -293,9 +293,10 @@ def plot_stimulus_image(idx, ax=None):
     else:
         fname = f"MFOB{idx - 999:03d}.bmp"  # 1000 -> MFOB001, 1071 -> MFOB072
 
-    fpath = Path(pth.IMAGEDIR) / fname
-    if fpath.exists():
-        img = mpimg.imread(fpath)
+    fpath = pth._join_path(pth.IMAGEDIR, fname)
+    local_fpath = vst.fetch(fpath)
+    if local_fpath.exists():
+        img = mpimg.imread(local_fpath)
         ax.imshow(img, cmap="gray")
         ax.set_title("")
         ax.axis("off")
