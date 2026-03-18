@@ -72,11 +72,15 @@ for target in ROI_TARGETS:
     selectivity = target.split(".")[-1]
     color = color_map[selectivity]
 
-    raster_4d = nu.significant_trial_raster(
-        roi_uid=target,
-        alpha=ALPHA,
-        bin_size_ms=BIN_SIZE_MS,
-    )
+    try: 
+        raster_4d = nu.significant_trial_raster(
+            roi_uid=target,
+            alpha=ALPHA,
+            bin_size_ms=BIN_SIZE_MS,
+        )
+    except Exception as e:
+        print(f"Could not load data for {target}: {type(e).__name__}: {e}")
+        continue
     raster_3d = np.nanmean(raster_4d, axis=3)
     image_order = tut.rank_images_by_response(raster_3d)
     idx_topk = np.asarray(image_order[:top_k], dtype=int)
