@@ -1,19 +1,13 @@
 #!/bin/bash
 #SBATCH -p shared
 #SBATCH -c 1
-#SBATCH --mem=50G
+#SBATCH --mem=80G
 #SBATCH -t 05:00:00
-#SBATCH -o errlog/neighbor.%j.out
+#SBATCH -o errlog/edmain.%j.out
 
 set -euo pipefail
 
 cd /n/holylabs/LABS/konkle_lab/Users/amarvi/workspace/manifold-dynamics
-
-# ========== raw rasters for individual sessions
-# uv run python -m manifold_dynamics.session_raster_extraction
-# uv run python eda/single_session_raster.py roi-uid.csv single-session-raster
-# uv run python denoise/single_session_gsn.py 1 denoise False 
-# uv run python src/manifold_dynamics/session_raster_extraction.py
 
 # ========== cross-validation of 51 unique ROIs
 idx=${SLURM_ARRAY_TASK_ID}
@@ -54,4 +48,6 @@ fi
 
 # uv run python crossval.py --target "$target" --save --verbose
 # uv run python neighbor_scales.py --target "$target" --feature-layers classifier.2 classifier.5 --save --verbose
-uv run python eigenspectra.py --target "$target" --save --verbose --log-scale
+# uv run python eigenspectra.py --target "$target" --save --verbose --log-scale
+# uv run python alexnet/compute_centroids.py --target "$target" --layer-key classifier.5 --save --verbose
+uv run python timextime/ed_main.py --target "$target" --verbose --save

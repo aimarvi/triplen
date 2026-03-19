@@ -61,6 +61,7 @@ selectivities = sorted({target.split(".")[-1] for target in roi_targets})
 palette = plt.cm.tab10(np.linspace(0, 1, len(selectivities)))
 color_map = {sel: palette[i] for i, sel in enumerate(selectivities)}
 seen_labels = set()
+plot_labels = {"F": "Face", "O": "Object", "B": "Body"}
 rows = []
 
 for target in roi_targets:
@@ -83,15 +84,15 @@ for target in roi_targets:
     ax.scatter(
         centroid[0],
         centroid[1],
-        s=140,
-        marker="X",
+        s=10,
+        marker="o",
         color=color,
-        edgecolor="white",
         linewidth=0.8,
-        label=selectivity if selectivity not in seen_labels else None,
+        label=plot_labels[selectivity] if selectivity not in seen_labels else None,
     )
     seen_labels.add(selectivity)
-    ax.text(centroid[0], centroid[1], f" {target}", color=color, va="center", fontsize=7)
+    # add text label next to each ROI
+    # ax.text(centroid[0], centroid[1], f" {target}", color=color, va="center", fontsize=7)
 
     rows.append(payload)
     vprint(

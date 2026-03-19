@@ -16,4 +16,4 @@ cd /n/holylabs/LABS/konkle_lab/Users/amarvi/workspace/manifold-dynamics
 # uv run python src/manifold_dynamics/session_raster_extraction.py
 
 # ========== ROI centroids in alexnet PC space
-uv run python alexnet/roi_centroids.py
+# uv run python alexnet/roi_centroids.py
