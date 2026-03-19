@@ -8,18 +8,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.decomposition import PCA
 
-import manifold_dynamics.neural_utils as nu
 import manifold_dynamics.paths as pth
-import manifold_dynamics.tuning_utils as tut
 import visionlab_utils.storage as vst
 
 
-# Use every ROI with a defined top-k value.
-ROI_TARGETS = None
+# -----------------------------------------------------------------------------
+# Ad Hoc Configuration
+# -----------------------------------------------------------------------------
+
 SELECTIVITIES_TO_PLOT = {"B", "F", "O"}
 LAYER_KEY = "classifier.5"
-ALPHA = 0.05
-BIN_SIZE_MS = 20
 SAVE = True
 VERBOSE = True
 
@@ -34,10 +32,9 @@ topk_local = vst.fetch(f"{pth.OTHERS}/topk_vals.pkl")
 with open(topk_local, "rb") as f:
     topk_vals = pickle.load(f)
 
-if ROI_TARGETS is None:
-    ROI_TARGETS = sorted(
-        target for target in topk_vals.keys() if target.split(".")[-1] in SELECTIVITIES_TO_PLOT
-    )
+roi_targets = sorted(
+    target for target in topk_vals.keys() if target.split(".")[-1] in SELECTIVITIES_TO_PLOT
+)
 
 feature_uri = f"{pth.SAVEDIR}/alexnet/alexnet_acts.pkl"
 acts_local = vst.fetch(feature_uri)
@@ -60,33 +57,28 @@ Z = pca.fit_transform(feature_matrix)
 fig, ax = plt.subplots(1, 1, figsize=(7, 6))
 ax.scatter(Z[:, 0], Z[:, 1], s=10, alpha=0.12, c="black", label="all images")
 
-selectivities = sorted({target.split(".")[-1] for target in ROI_TARGETS})
+selectivities = sorted({target.split(".")[-1] for target in roi_targets})
 palette = plt.cm.tab10(np.linspace(0, 1, len(selectivities)))
 color_map = {sel: palette[i] for i, sel in enumerate(selectivities)}
 seen_labels = set()
 rows = []
-for target in ROI_TARGETS:
-    if target not in topk_vals:
-        raise ValueError(f"No top-k entry found for ROI: {target}")
-    top_k = int(topk_vals[target]["k"])
+
+for target in roi_targets:
     selectivity = target.split(".")[-1]
-    color = color_map[selectivity]
-
-    try: 
-        raster_4d = nu.significant_trial_raster(
-            roi_uid=target,
-            alpha=ALPHA,
-            bin_size_ms=BIN_SIZE_MS,
-        )
+    centroid_uri = (
+        f"{pth.SAVEDIR}/alexnet/roi_centroids/{LAYER_KEY.replace('.', '_')}/{target}.pkl"
+    )
+    try:
+        centroid_local = vst.fetch(centroid_uri)
     except Exception as e:
-        print(f"Could not load data for {target}: {type(e).__name__}: {e}")
+        print(f"Could not load centroid for {target}: {type(e).__name__}: {e}")
         continue
-    raster_3d = np.nanmean(raster_4d, axis=3)
-    image_order = tut.rank_images_by_response(raster_3d)
-    idx_topk = np.asarray(image_order[:top_k], dtype=int)
 
-    Z_topk = Z[idx_topk]
-    centroid = np.nanmean(Z_topk, axis=0)
+    with open(centroid_local, "rb") as f:
+        payload = pickle.load(f)
+
+    centroid = np.array([payload["centroid_pc1"], payload["centroid_pc2"]], dtype=float)
+    color = color_map[selectivity]
 
     ax.scatter(
         centroid[0],
@@ -101,16 +93,11 @@ for target in ROI_TARGETS:
     seen_labels.add(selectivity)
     ax.text(centroid[0], centroid[1], f" {target}", color=color, va="center", fontsize=7)
 
-    rows.append(
-        {
-            "roi": target,
-            "top_k": top_k,
-            "selectivity": selectivity,
-            "centroid_pc1": float(centroid[0]),
-            "centroid_pc2": float(centroid[1]),
-        }
+    rows.append(payload)
+    vprint(
+        f"{target}: layer={payload['layer_key']}, "
+        f"centroid=({payload['centroid_pc1']:.4f}, {payload['centroid_pc2']:.4f})"
     )
-    vprint(f"{target}: k={top_k}, centroid=({centroid[0]:.4f}, {centroid[1]:.4f})")
 
 ax.set_xlabel("PC1")
 ax.set_ylabel("PC2")
@@ -119,17 +106,15 @@ ax.legend(frameon=False, title="selectivity", loc="best")
 fig.tight_layout()
 
 if SAVE:
-    df_out = rows
-    s3_base = f"{pth.SAVEDIR}/alexnet/roi_centroids_{LAYER_KEY.replace('.', '_')}"
+    s3_base = f"{pth.SAVEDIR}/alexnet/roi_centroids_plot_{LAYER_KEY.replace('.', '_')}"
     with fsspec.open(f"{s3_base}.pkl", "wb") as f:
-        pickle.dump(df_out, f)
+        pickle.dump(rows, f)
     with fsspec.open(f"{s3_base}.png", "wb") as f:
         fig.savefig(f, format="png", dpi=300, bbox_inches="tight")
 
-# Save to local
-#      download_dir = Path.home() / "Downloads"
-#      fig.savefig(
-#          download_dir / f"roi_centroids_{LAYER_KEY.replace('.', '_')}.png",
-#          dpi=300,
-#          bbox_inches="tight",
-#      )
+    download_dir = Path.home() / "Downloads"
+    fig.savefig(
+        download_dir / f"roi_centroids_{LAYER_KEY.replace('.', '_')}.png",
+        dpi=300,
+        bbox_inches="tight",
+    )
