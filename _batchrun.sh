@@ -3,7 +3,7 @@
 #SBATCH -c 1
 #SBATCH --mem=80G
 #SBATCH -t 05:00:00
-#SBATCH -o errlog/edmain.%j.out
+#SBATCH -o errlog/centroid.%j.out
 
 set -euo pipefail
 
@@ -49,5 +49,5 @@ fi
 # uv run python crossval.py --target "$target" --save --verbose
 # uv run python neighbor_scales.py --target "$target" --feature-layers classifier.2 classifier.5 --save --verbose
 # uv run python eigenspectra.py --target "$target" --save --verbose --log-scale
-# uv run python alexnet/compute_centroids.py --target "$target" --layer-key classifier.5 --save --verbose
-uv run python timextime/ed_main.py --target "$target" --verbose --save
+uv run python alexnet/compute_centroids.py --target "$target" --layer-key classifier.2 --save --verbose
+# uv run python timextime/ed_main.py --target "$target" --verbose --save
