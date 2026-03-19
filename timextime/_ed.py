@@ -14,7 +14,7 @@ ONSET = 50
 RESP = slice(ONSET + RESP[0], ONSET + RESP[1])
 BASE = slice(ONSET + BASE[0], ONSET + BASE[1])
 
-DATA_DIR = '../../datasets/NNN/'
+DATA_DIR = './../../datasets/NNN/'
 CATEGORY = 'object'
 
 dat = pd.read_pickle(os.path.join(DATA_DIR, (f'{CATEGORY}_roi_data.pkl')))
@@ -77,5 +77,5 @@ for ROI, SC in mins.items():
 df = pd.DataFrame(all_rows)
 print(df)
 
-SAVE_DIR = '../../datasets/NNN/'
+SAVE_DIR = './../../datasets/NNN/'
 df.to_pickle(os.path.join(SAVE_DIR, f'{CATEGORY}_ed.pkl'))

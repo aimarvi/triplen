@@ -134,3 +134,7 @@ This project analyzes how neural population geometry changes over time for prefe
 - `visionlab_utils.storage.fetch()` is the standard read path for S3-backed assets in this repo.
 - Many long S3-backed analysis runs are quiet until completion because they only print at the end. Before assuming a stall, check whether the expected output file already landed.
 - `np.trapz` was unavailable in this environment; `np.trapezoid` worked.
+- When comparing new raw-raster time-time ED scripts against `../datasets/NNN/face_ed.pkl`, note the time-window mismatch:
+  - old reference uses `tstart=100`, `tend=300`
+  - current canonical default stays `tstart=100`, `tend=350`
+  - this alone can explain a substantial ED mismatch even when the rest of the pipeline is aligned.

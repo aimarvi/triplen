@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 
-DATA_DIR = '../../datasets/NNN/'
+DATA_DIR = './../../datasets/NNN/'
 
 # load in all data and consolidate into one big df
 df = pd.DataFrame()
