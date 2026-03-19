@@ -71,6 +71,8 @@ This project analyzes how neural population geometry changes over time for prefe
   - old inconsistent key: `28.AMC3.F`
   - canonical key now: `28.AMC3.O`
   - this matches `roi-uid.csv` and the `single-session-raster/` metadata.
+  - verified on 2026-03-19 that the actual S3 object and refreshed local cache now contain `28.AMC3.O`
+    with value `{'k': 40, 'metric': 274.21972956592697}`
 
 ## Session Log (2026-03-16)
 - Built `interpret_temporal_pca.py`, `interpret_temporal_pca_01.py`, `interpret_temporal_pca_02.py`.
@@ -123,6 +125,31 @@ This project analyzes how neural population geometry changes over time for prefe
   - `s3://visionlab-members/amarvi/manifold-dynamics/alexnet/alexnet_acts.pkl`
 
 ## Tips for Future Agents
+- Repo style patterns matter more than generic cleanup preferences.
+  - There are two accepted script styles in this repo and they should stay distinct:
+    - ad hoc scripts:
+      - top-of-file configuration constants
+      - `vprint()` at module scope
+      - linear execution, no `main()` / `argparse`
+    - CLI scripts:
+      - `main() + argparse`
+      - `vprint()` defined inside `main()`
+  - `vprint()` is standard in both styles and should not be removed under a generic “avoid helper functions” cleanup pass.
+  - Prefer compact, linear scripts with explicit steps over introducing extra helper functions unless a helper materially clarifies shared logic.
+  - Standard S3 reads use `vst.fetch(...)`; standard S3 writes use `fsspec.open(...)`.
+  - When `--save` is present, the common pattern is:
+    - save canonical analysis output to `pth.SAVEDIR/...`
+    - optionally also save a local copy to `~/Downloads/` for inspection
+  - For ad hoc scripts with `SAVE = True`, the common pattern is:
+    - save a local repo artifact if relevant
+    - save canonical output to `pth.SAVEDIR/...`
+    - save a convenience copy to `~/Downloads/`
+  - Follow the concrete style of nearby repo scripts such as:
+    - `timextime/crossval.py`
+    - `timextime/ed_main.py`
+    - `alexnet/locality_test.py`
+    - `alexnet/plot_centroids.py`
+  - Consistency across the repo is a priority. When changing a script, match the surrounding file family rather than imposing a new generic style.
 - The saved AlexNet activation file does **not** contain every layer listed in `alexnet/layers.txt`.
   - Available keys:
     - `features.2`
@@ -142,3 +169,16 @@ This project analyzes how neural population geometry changes over time for prefe
   - old reference uses `tstart=100`, `tend=300`
   - current canonical default stays `tstart=100`, `tend=350`
   - this alone can explain a substantial ED mismatch even when the rest of the pipeline is aligned.
+
+## Session Log (2026-03-19)
+- Started replacing `aux_controls/sampling_strength.py` with a canonical S3-backed version.
+- Canonical source decision for this analysis:
+  - `local_ed` / `global_ed` must come from `f"{pth.SAVEDIR}/timextime/ed_main/{roi}.pkl"`
+  - old `../datasets/NNN/*` ED tables should be ignored unless explicitly requested by the user
+- User emphasized that repo coding style should follow local script patterns, not generic simplification:
+  - `vprint()` is standard and should be treated as an exception to the “avoid helper functions” rule
+  - avoid bulky `.txt` side outputs unless clearly needed
+  - `aux_controls/sampling_strength.py` was rewritten in ad hoc style to match other exploratory analysis scripts:
+    - top-of-file config
+    - module-level `vprint()`
+    - linear execution
