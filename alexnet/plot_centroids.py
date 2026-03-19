@@ -55,7 +55,7 @@ pca = PCA(n_components=2)
 Z = pca.fit_transform(feature_matrix)
 
 fig, ax = plt.subplots(1, 1, figsize=(7, 6))
-ax.scatter(Z[:, 0], Z[:, 1], s=10, alpha=0.12, c="black", label="all images")
+ax.scatter(Z[:, 0], Z[:, 1], s=10, alpha=0.25, marker="o", c="black", label=None)
 
 selectivities = sorted({target.split(".")[-1] for target in roi_targets})
 palette = plt.cm.tab10(np.linspace(0, 1, len(selectivities)))
@@ -84,8 +84,9 @@ for target in roi_targets:
     ax.scatter(
         centroid[0],
         centroid[1],
-        s=10,
-        marker="o",
+        s=120,
+        marker="X",
+        edgecolor="white", 
         color=color,
         linewidth=0.8,
         label=plot_labels[selectivity] if selectivity not in seen_labels else None,
@@ -104,10 +105,16 @@ ax.set_xlabel("PC1")
 ax.set_ylabel("PC2")
 ax.set_title(f"ROI centroids in {LAYER_KEY} space")
 ax.legend(frameon=False, title="selectivity", loc="best")
+
+x_low, x_high = np.percentile(Z[:, 0], [1, 99])
+y_low, y_high = np.percentile(Z[:, 1], [1, 99])
+ax.set_xlim(x_low, x_high)
+ax.set_ylim(y_low, y_high)
+
 fig.tight_layout()
 
 if SAVE:
-    s3_base = f"{pth.SAVEDIR}/alexnet/roi_centroids_plot_{LAYER_KEY.replace('.', '_')}"
+    s3_base = f"{pth.SAVEDIR}/alexnet/roi_centroids_{LAYER_KEY.replace('.', '_')}"
     with fsspec.open(f"{s3_base}.pkl", "wb") as f:
         pickle.dump(rows, f)
     with fsspec.open(f"{s3_base}.png", "wb") as f:

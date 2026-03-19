@@ -67,6 +67,10 @@ This project analyzes how neural population geometry changes over time for prefe
 - Verified `alexnet/locality_layers.py` runs correctly for `19.Unknown.F` and saves:
   - `s3://visionlab-members/amarvi/manifold-dynamics/neighbors/locality_layers/19.Unknown.F.png`
   - `s3://visionlab-members/amarvi/manifold-dynamics/neighbors/locality_layers/19.Unknown.F.pkl`
+- Resolved the AMC3 label mismatch by updating `topk_vals.pkl`:
+  - old inconsistent key: `28.AMC3.F`
+  - canonical key now: `28.AMC3.O`
+  - this matches `roi-uid.csv` and the `single-session-raster/` metadata.
 
 ## Session Log (2026-03-16)
 - Built `interpret_temporal_pca.py`, `interpret_temporal_pca_01.py`, `interpret_temporal_pca_02.py`.
