@@ -118,5 +118,6 @@ if SAVE:
     with fsspec.open(s3_csv, "w") as f:
         df_out.to_csv(f, index=False)
 
-    download_csv = Path.home() / "Downloads" / "sampling_strength_summary.csv"
-    df_out.to_csv(download_csv, index=False)
+# save to local
+#     download_csv = Path.home() / "Downloads" / "sampling_strength_summary.csv"
+#     df_out.to_csv(download_csv, index=False)

@@ -3,7 +3,7 @@
 #SBATCH -c 1
 #SBATCH --mem=100G
 #SBATCH -t 10:00:00
-#SBATCH -o errlog/centroid.%j.out
+#SBATCH -o errlog/sampling.%j.out
 
 set -euo pipefail
 
@@ -17,3 +17,6 @@ cd /n/holylabs/LABS/konkle_lab/Users/amarvi/workspace/manifold-dynamics
 
 # ========== ROI centroids in alexnet PC space
 # uv run python alexnet/roi_centroids.py
+
+# ========== Auxiliary / Controls
+uv run python aux_controls/sampling_strength.py
