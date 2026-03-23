@@ -17,7 +17,7 @@ import visionlab_utils.storage as vst
 # -----------------------------------------------------------------------------
 
 SELECTIVITIES_TO_PLOT = {"B", "F", "O"}
-LAYER_KEY = "classifier.5"
+LAYER_KEY = "classifier.2"
 SAVE = True
 VERBOSE = True
 
